@@ -37,28 +37,22 @@ def mouse_callback(event, x, y, flags, params):
         left_clicks.append([x, y])
         print(cali_index,[x, y])
 
-    #
-    # if event == 2:
-    #
-    #     # store the coordinates of the right-click event
-    #     img = cv2.circle(img, (x, y), radius=10, color=(0, 0, 255), thickness=-1)
-    #     if x < 3840:
-    #
-    #         cv2.imshow("recPair_i", img)
-    #         left_bbox.append([x, y+cutTop])
-    #         print('left_bbox:',left_bbox)
-    #     else:
-    #         right_bbox.append([x-3840, y+cutTop])
-    #         print('right_bbox:',right_bbox)
+
+    if event == 2:
+        cali_index += 1
+        cv2.putText(img, str(cali_index), (x+40, y), cv2.FONT_HERSHEY_SIMPLEX, 8, (0, 255, 255), 4)
+        cv2.imshow(window_name, img)
+        left_clicks.append([np.nan, np.nan])
+        print(cali_index,[np.nan, np.nan])
 
 
 ####################################### CHANGE HERE BEFORE RUN #######################################
-scene = 1
-img_dir = f'H:\phone_Lidar\data\prelim\oct11\scene-{scene}'
+scene_no = 1
+img_dir = f'H:\phone_Lidar\data\prelim\oct11\scene-{scene_no}'
 img_extension = 'jpeg'
-checkpoint_file = f'H:\phone_Lidar\data\prelim\oct11\scene-{scene}.pkl'
+checkpoint_file = f'H:\phone_Lidar\data\prelim\oct11\scene-{scene_no}-2Dkps.pkl'
 kp_nos = 8
-kp_names = ['door_topleft','door_topright','door_bottomleft','door_bottomright','frame_topleft','frame_topright','frame_bottomleft','frame_bottomright']
+kp_names = ['door_topright','door_topleft','door_bottomright','door_bottomleft','frame_topright','frame_topleft','frame_bottomright','frame_bottomleft']
 ####################################### CHANGE HERE BEFORE RUN #######################################
 try:
     with open(checkpoint_file, 'rb') as f:
@@ -66,8 +60,8 @@ try:
         annotation = checkpoint['annotation']
     print(f'Loaded checkpoint: {checkpoint_file}')
 except:
-    checkpoint = {'scene': scene, 'kp_nos':kp_nos, 'kp_names':kp_names}
-    df_col = ['img_name','2Dkp']
+    checkpoint = {'scene_no': scene_no, 'kp_nos':kp_nos, 'kp_names':kp_names}
+    df_col = ['img_name','img_kp']
     annotation = pd.DataFrame(columns=df_col,dtype='float')
     checkpoint['annotation'] = annotation
     print(f'Created new checkpoint: {checkpoint_file}')
@@ -79,8 +73,8 @@ while img_idx < len(img_names):
     img_name = img_names[img_idx]
     # continue loop if img_name is in checkpoint
     if img_name in checkpoint['annotation'].img_name.values.tolist():
-        img_idx = img_idx+1
         print(f'{img_idx}::: img_name: {img_name} is in checkpoint')
+        img_idx = img_idx+1
         continue
     anno_frame = []
     img = cv2.imread(img_name)
@@ -93,7 +87,7 @@ while img_idx < len(img_names):
     scale = min(scale_width, scale_height)*2 # 3 for 1 screen, 5 for 2 screen
     window_width = int(img.shape[1] * scale)
     window_height = int(img.shape[0] * scale)
-    window_name = f"scene-{scene}_%.4d"%img_idx
+    window_name = f"scene_no-{scene_no}_%.4d" % img_idx
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(window_name, window_width, window_height)
     cv2.moveWindow(window_name, 40,30)
@@ -103,14 +97,18 @@ while img_idx < len(img_names):
     cv2.setMouseCallback(window_name, mouse_callback)
     key = cv2.waitKey(0)
 
-    if key & 0xFF == ord('q'):
+    if key & 0xFF == ord('b'):
         break
-    elif key & 0xFF == ord('p'):
+    elif key & 0xFF == ord('r'):
         img_idx = img_idx - 1
-    elif key & 0xFF == ord('w'):
+    elif key & 0xFF == ord('p'):
         cali_index -=1
         left_clicks.pop()
-    elif key & 0xFF == ord('z'):
+    elif key & 0xFF == ord('c'):
+        img_idx = img_idx + 1
+        left_clicks = list()
+        cali_index = 0
+        cv2.destroyAllWindows()
         continue
     anno_frame.append(left_clicks)
 
