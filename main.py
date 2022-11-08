@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from utils.calibration_store import load_coefficients
 import pickle
+import cv2
 from utils.tools import *
 from matplotlib.patches import FancyArrowPatch
 
@@ -15,13 +16,19 @@ from matplotlib.patches import FancyArrowPatch
 ### Init parameters
 ####################################### CHANGE HERE BEFORE RUN #######################################
 scene = 1
-date_dir = r'H:\phone_Lidar\data\prelim\oct11'
+date_dir = r'H:\phone_Lidar\data\prelim\oct31'
 scene_no = 1
 data_dir = os.path.join(date_dir, f'scene-{scene_no}')
-cam_yml = r'H:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml'
+
 img_extension = 'jpeg'
 checkpoint_file = f'{date_dir}\scene-{scene_no}-2Dkps.pkl'
 kp_nos = 8
+portrait_flag = False
+oct31Test = True
+if portrait_flag:
+    cam_yml = r'H:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml'
+else:
+    cam_yml = r'H:\phone_Lidar\data\prelim\oct11\Hongxiao.yml'
 ####################################### CHANGE HERE BEFORE RUN #######################################
 
 ### Read 2D keypoint annotation: pkl
@@ -33,18 +40,31 @@ with open(checkpoint_file, 'rb') as f:
 
 ### Read phone data: yml
 camera_matrix, dist_coeffs = load_coefficients(cam_yml)
-camera_matrix_4x4 = np.eye(4)
-camera_matrix_4x4[:3, :3] = camera_matrix
-# fixme: combine dist_coeffs and camera_matrix_4x4 into a single matrix
+cam_intrinsic_4x4M = np.eye(4)
+cam_intrinsic_4x4M[:3, :3] = camera_matrix
+# fixme: combine dist_coeffs and cam_intrinsic_4x4M into a single matrix
 
 
 cameraPositions = []
 lineP_3ds = []
-pesdoDepth = -2.5
+pesdoDepth = -3
+
+
 for index, frame in annotation.iterrows():
+    frame
     # frame.name
     # frame.img_name
     # frame.img_kp
+
+    # # display image and plot keypoints
+    # img = cv2.imread(frame.img_name)
+    # # plot keypoints
+    # for i in range(kp_nos):
+    #     if not np.isnan(frame.img_kp[i][0]):
+    #         img = cv2.circle(img, (int(frame.img_kp[i][0]), int(frame.img_kp[i][1])), radius=20, color=(255, 0, 255), thickness=-1)
+    #         cv2.putText(img, kp_names[i], (int(frame.img_kp[i][0])+40, int(frame.img_kp[i][1])), cv2.FONT_HERSHEY_SIMPLEX, 8, (0, 0, 255), 4)
+    # # save
+    # cv2.imwrite(os.path.join(data_dir,'annotation', f'img_{index}.jpeg'), img)
 
     # read odometry json
     json_file = frame.img_name.replace(img_extension, 'json')
@@ -52,29 +72,62 @@ for index, frame in annotation.iterrows():
         data = json.load(f)
         cameraEulerAngles = data['cameraEulerAngles'] # ios-ARkit XYZ Roll-Pitch-Yaw
         camera_rot_M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
-        cameraTransform = np.array(data['cameraTransform'][0])
-        cameraTransform[:-1,:-1] = camera_rot_M
-        cameraPosition = cameraTransform[-1,:-1]
+        cameraTransform = np.array(data['cameraTransform'][0]).T
+        if oct31Test:
+            cameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3,3))
+            localToWorld = np.array(data['localToWorld']).reshape((4,4))
+
+        if True:
+            # if ios case is set to gravity (0)
+            camera_rot_4x4M = np.eye(4)
+            camera_rot_4x4M[:3, :3] = camera_rot_M
+            camera_transform_4x4M = np.eye(4)
+            camera_transform_4x4M[:3, 3] = cameraTransform[:3, 3]
+            cam_extrincic_4x4M = camera_transform_4x4M @ camera_rot_4x4M
+
+
+            cameraTransform[:-1,:-1] = (camera_rot_M.T).dot(cameraTransform[:-1,:-1]) #
+            # cameraTransform[:-1,:-1] = cameraTransform[:-1,:-1].dot(camera_rot_M.T) # fixme: one of these is correct
+        else:
+            # if ios case is set to camera (2)
+            # dont need to do anything
+            pass
+        cameraPosition = cameraTransform[:-1,-1]
         cameraPositions.append(cameraPosition)
 
-
-
+    # set img kp to center of image 3840 x 2160 /2
+    # frame.img_kp = np.array([[3840/2, 2160/2],[3840/2, 2160/2],[3840/2, 2160/2],[3840/2, 2160/2],
+    # [3840/2, 2160/2],[3840/2, 2160/2],[3840/2, 2160/2],[3840/2, 2160/2]])
 
     kp_no = frame.img_kp.shape[0]
     #     add 1 & 1/z to the last column of img_kp
     #     https://medium.com/yodayoda/from-depth-map-to-point-cloud-7473721d3f
     # https://developer.apple.com/documentation/arkit/arconfiguration/worldalignment/gravity
 
+    if portrait_flag:
+        #  this is portrait
+        rot_kp = np.array([[0,1],[1,0]]).dot(frame.img_kp.T).T+np.array([4320,0])
+        img_kp = np.hstack((rot_kp, np.ones((kp_no, 1)), 1/pesdoDepth*np.ones((kp_no, 1))))
+    else:
+        # this is landscape (annotation is landscape)
+        dist_kp = frame.img_kp.astype(np.float32).reshape((kp_no,1,  2))
+        undist_kp = cv2.undistortPoints(dist_kp, camera_matrix, dist_coeffs, P=camera_matrix).reshape((kp_no, 2))
+        img_kp = np.hstack((undist_kp, np.ones((kp_no, 1)), 1/pesdoDepth*np.ones((kp_no, 1))))
+    #     why 1/pesdoDepth: https://medium.com/yodayoda/from-depth-map-to-point-cloud-7473721d3f
+    if not oct31Test:
+        lineP_3d = np.dot(np.linalg.pinv(1 / pesdoDepth * np.dot(cam_intrinsic_4x4M, cam_extrincic_4x4M)), img_kp.T).T
 
-    #  this is portrait
-    rot_kp = np.array([[0,1],[1,0]]).dot(frame.img_kp.T).T+np.array([4320,0])
-    img_kp = np.hstack((rot_kp, np.ones((kp_no, 1)), 1/pesdoDepth*np.ones((kp_no, 1))))
-    # todo: redo calibration w. rotated img
+    else:
+        localPoint = (cameraIntrinsicsInversed.dot(np.hstack((undist_kp, np.ones((kp_no, 1)))).T )).T
+        lineP_3d = (localToWorld.dot(
+            np.hstack(
+                (
+                    localPoint, np.ones((kp_no, 1))
+                )
+            ).T
+        )).T
 
-    # this is landscape (annotation is landscape)
-    # img_kp = np.hstack((frame.img_kp, np.ones((kp_no, 1)), 1/pesdoDepth*np.ones((kp_no, 1))))
 
-    lineP_3d = np.dot(np.linalg.pinv(1/pesdoDepth*np.dot(camera_matrix_4x4, cameraTransform.T)),img_kp.T).T
     lineP_3d = np.array([np.divide(lineP_3d[:,0],lineP_3d[:,3].T),np.divide(lineP_3d[:,1],lineP_3d[:,3].T),np.divide(lineP_3d[:,2],lineP_3d[:,3].T)]).T
     lineP_3ds.append(lineP_3d)
 
@@ -112,10 +165,12 @@ for kp in range(kp_nos):
 
     # plot line from camera to first 3D point
     for i in range(len(cameraPositions)):
+        alpha = i/len(cameraPositions)
         if lineP_3ds[i,kp,0] == np.nan:
             continue
-        ax.scatter(cameraPositions[i,0], cameraPositions[i,1], cameraPositions[i,2], s=4, c='r')
-        ax.plot([cameraPositions[i,0], lineP_3ds[i,kp,0]], [cameraPositions[i,1], lineP_3ds[i,kp,1]], [cameraPositions[i,2], lineP_3ds[i,kp,2]], c='c')
+        ax.scatter(cameraPositions[i,0], cameraPositions[i,1], cameraPositions[i,2], s=4, c='r', alpha=alpha)
+        ax.plot([cameraPositions[i,0], lineP_3ds[i,kp,0]], [cameraPositions[i,1], lineP_3ds[i,kp,1]], [cameraPositions[i,2], lineP_3ds[i,kp,2]], c='c', alpha=alpha/3)
+        ax.scatter(lineP_3ds[i,kp,0], lineP_3ds[i,kp,1], lineP_3ds[i,kp,2], s=4, c='g', alpha=alpha)
     # show axis label
 
     ax.set_xlabel('X')

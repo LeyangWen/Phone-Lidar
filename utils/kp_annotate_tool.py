@@ -48,9 +48,9 @@ def mouse_callback(event, x, y, flags, params):
 
 ####################################### CHANGE HERE BEFORE RUN #######################################
 scene_no = 1
-img_dir = f'H:\phone_Lidar\data\prelim\oct11\scene-{scene_no}'
+img_dir = f'H:\phone_Lidar\data\prelim\oct31\\scene-{scene_no}'
 img_extension = 'jpeg'
-checkpoint_file = f'H:\phone_Lidar\data\prelim\oct11\scene-{scene_no}-2Dkps.pkl'
+checkpoint_file = f'H:\phone_Lidar\data\prelim\oct31\scene-{scene_no}-2Dkps.pkl'
 kp_nos = 8
 kp_names = ['door_topright','door_topleft','door_bottomright','door_bottomleft','frame_topright','frame_topleft','frame_bottomright','frame_bottomleft']
 ####################################### CHANGE HERE BEFORE RUN #######################################
@@ -122,7 +122,10 @@ while img_idx < len(img_names):
         continue
     annotation.loc[img_idx] = [img_name,anno_frame]
     checkpoint['annotation'] = annotation
-    img_idx = img_idx+1
+    img_idx = img_idx+10
 
+
+    # annotation.img_name = annotation.img_name.str.slice_replace(stop = 58, repl='H:\phone_Lidar\data\prelim\oct31\\2022-10-31 16_57_40\data\\1')
+    # annotation.img_name[1]
     with open(checkpoint_file, 'wb') as f:
         pickle.dump(checkpoint,f)
