@@ -42,16 +42,21 @@ with open(checkpoint_file, 'rb') as f:
 camera_matrix, dist_coeffs = load_coefficients(cam_yml)
 cam_intrinsic_4x4M = np.eye(4)
 cam_intrinsic_4x4M[:3, :3] = camera_matrix
-# fixme: combine dist_coeffs and cam_intrinsic_4x4M into a single matrix
 
 
 cameraPositions = []
 lineP_3ds = []
-pesdoDepth = -3
+depths = []
+pesdoDepth = 3
 
+
+# arrange annotation based on index
+annotation = annotation.sort_index()
 
 for index, frame in annotation.iterrows():
-    frame
+    print(index)
+    # if index > 111:
+    #     break
     # frame.name
     # frame.img_name
     # frame.img_kp
@@ -71,33 +76,31 @@ for index, frame in annotation.iterrows():
     with open(json_file) as f:
         data = json.load(f)
         cameraEulerAngles = data['cameraEulerAngles'] # ios-ARkit XYZ Roll-Pitch-Yaw
-        camera_rot_M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
+        camera_rot_3x3M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
         cameraTransform = np.array(data['cameraTransform'][0]).T
         if oct31Test:
             cameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3,3))
             localToWorld = np.array(data['localToWorld']).reshape((4,4))
+            depth_cam_intrinsic_3x3M = np.linalg.pinv(cameraIntrinsicsInversed) # not sure
 
         if True:
             # if ios case is set to gravity (0)
             camera_rot_4x4M = np.eye(4)
-            camera_rot_4x4M[:3, :3] = camera_rot_M
+            camera_rot_4x4M[:3, :3] = rotation_matrix(-np.pi, 0, 0) @ camera_rot_3x3M
             camera_transform_4x4M = np.eye(4)
             camera_transform_4x4M[:3, 3] = cameraTransform[:3, 3]
-            cam_extrincic_4x4M = camera_transform_4x4M @ camera_rot_4x4M
+            cam_extrinsic_4x4M = camera_transform_4x4M @ camera_rot_4x4M
 
 
-            cameraTransform[:-1,:-1] = (camera_rot_M.T).dot(cameraTransform[:-1,:-1]) #
+            cameraTransform[:-1,:-1] = (camera_rot_3x3M.T) @ (cameraTransform[:-1,:-1]) #
             # cameraTransform[:-1,:-1] = cameraTransform[:-1,:-1].dot(camera_rot_M.T) # fixme: one of these is correct
-        else:
-            # if ios case is set to camera (2)
-            # dont need to do anything
-            pass
+
         cameraPosition = cameraTransform[:-1,-1]
         cameraPositions.append(cameraPosition)
 
-    # set img kp to center of image 3840 x 2160 /2
-    # frame.img_kp = np.array([[3840/2, 2160/2],[3840/2, 2160/2],[3840/2, 2160/2],[3840/2, 2160/2],
-    # [3840/2, 2160/2],[3840/2, 2160/2],[3840/2, 2160/2],[3840/2, 2160/2]])
+    # set img kp to center of image /2 5760 4320
+    # frame.img_kp = np.array([[5760/2, 4320/2],[5760/2, 4320/2],[5760/2, 4320/2],[5760/2, 4320/2],
+    #                          [5760/2, 4320/2],[5760/2, 4320/2],[5760/2, 4320/2],[5760/2, 4320/2],])
 
     kp_no = frame.img_kp.shape[0]
     #     add 1 & 1/z to the last column of img_kp
@@ -115,24 +118,34 @@ for index, frame in annotation.iterrows():
         img_kp = np.hstack((undist_kp, np.ones((kp_no, 1)), 1/pesdoDepth*np.ones((kp_no, 1))))
     #     why 1/pesdoDepth: https://medium.com/yodayoda/from-depth-map-to-point-cloud-7473721d3f
     if not oct31Test:
-        lineP_3d = np.dot(np.linalg.pinv(1 / pesdoDepth * np.dot(cam_intrinsic_4x4M, cam_extrincic_4x4M)), img_kp.T).T
+        # lineP_3d = np.dot(np.linalg.pinv(1 / pesdoDepth * np.dot(cam_intrinsic_4x4M, cam_extrinsic_4x4M)), img_kp.T).T
+        lineP_3d = (
+            np.linalg.pinv(1 / pesdoDepth *
+                           (cam_intrinsic_4x4M @ cam_extrinsic_4x4M)) @ img_kp.T
+        ).T
 
     else:
-        localPoint = (cameraIntrinsicsInversed.dot(np.hstack((undist_kp, np.ones((kp_no, 1)))).T )).T
-        lineP_3d = (localToWorld.dot(
+        localPoint = (np.linalg.pinv(camera_matrix).T @
+                      np.hstack(
+                          (undist_kp, np.ones((kp_no, 1)))
+                                ).T
+                      ).T*pesdoDepth
+        lineP_3d = (localToWorld @
             np.hstack(
                 (
                     localPoint, np.ones((kp_no, 1))
                 )
             ).T
-        )).T
+        ).T
 
 
     lineP_3d = np.array([np.divide(lineP_3d[:,0],lineP_3d[:,3].T),np.divide(lineP_3d[:,1],lineP_3d[:,3].T),np.divide(lineP_3d[:,2],lineP_3d[:,3].T)]).T
     lineP_3ds.append(lineP_3d)
+    depth = np.linalg.norm(lineP_3d-cameraPosition, axis=1)
+    depths.append(depth)
 
 
-
+depths = np.array(depths)
 cameraPositions = np.array(cameraPositions)
 lineP_3ds = np.array(lineP_3ds)
 ### Plot
@@ -165,6 +178,8 @@ for kp in range(kp_nos):
 
     # plot line from camera to first 3D point
     for i in range(len(cameraPositions)):
+        if depths[i,kp] > 6:
+            continue
         alpha = i/len(cameraPositions)
         if lineP_3ds[i,kp,0] == np.nan:
             continue

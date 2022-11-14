@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+
 def intersect(P0,P1):
     """P0 and P1 are NxD arrays defining N lines.
     D is the dimension of the space. This function
@@ -32,7 +33,6 @@ def intersect(P0,P1):
 def plot_3D_points(points, ax):
     ax.scatter(points[:,0], points[:,1], points[:,2], s=10, c='r')
 
-import numpy as np
 
 def rotation_matrix(theta1, theta2, theta3, order='xyz'):
     """
@@ -99,3 +99,54 @@ def rotation_matrix(theta1, theta2, theta3, order='xyz'):
                          [-c2*s3, s2, c2*c3]])
 
     return matrix
+
+
+def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.1, cameraColor=(0, 1, 0), cameraName='camera',figure = None):
+    """
+    Draw camera in the scene
+    :param cameraTransform4x4: camera transform matrix
+    :param cameraIntrinsic3x3: camera intrinsic matrix
+    :param cameraSize: camera size
+    :param cameraColor: camera color
+    :param cameraName: camera name
+    :return:
+    """
+
+    # get camera transform
+    cameraTransform = cameraTransform4x4[:3, :3]
+    cameraPosition = cameraTransform4x4[:3, 3]
+
+    # four edge points
+    base_2D = np.array([[0, 0],[0,resolution[1]],[resolution[0],resolution[1]],[resolution[0],0]], dtype=np.float32)
+
+    # project to 3D
+    base_3D = np.zeros((4, 4), dtype=np.float32)
+
+
+    # get camera frustum in world coordinate
+    cameraFrustum = np.dot(cameraFrustum, np.linalg.inv(cameraTransform4x4).T)
+
+    # get camera frustum in image coordinate
+    cameraFrustum = np.dot(cameraFrustum, cameraIntrinsic.T)
+    cameraFrustum = cameraFrustum[:, :2] / cameraFrustum[:, 2:]
+
+    # get camera frustum in pixel coordinate
+    cameraFrustum[:, 0] = cameraFrustum[:, 0] * fx + cx
+    cameraFrustum[:, 1] = cameraFrustum[:, 1] * fy + cy
+
+    # get camera frustum in pixel coordinate
+    cameraFrustum = np.concatenate((cameraFrustum, base_2D), axis=0)
+
+    # draw camera frustum
+    draw_polygon(cameraFrustum, cameraColor, cameraName)
+
+    return
+
+    if figure is None:
+        figure = plt.figure()
+    ax = figure.gca(projection='3d')
+
+
+
+
+def draw_square_pyramid(tipPosition, basePositions):
