@@ -101,7 +101,7 @@ def rotation_matrix(theta1, theta2, theta3, order='xyz'):
     return matrix
 
 
-def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.1, cameraColor=(0, 1, 0), cameraName='camera',figure = None):
+def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.1, cameraColor=(0, 255, 0), cameraName='cam',figure = None):
     """
     Draw camera in the scene
     :param cameraTransform4x4: camera transform matrix
@@ -113,40 +113,58 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     """
 
     # get camera transform
-    cameraTransform = cameraTransform4x4[:3, :3]
-    cameraPosition = cameraTransform4x4[:3, 3]
+    cameraPosition = cameraTransform4x4[3, :3] # Fixme: curreent local to world
 
     # four edge points
-    base_2D = np.array([[0, 0],[0,resolution[1]],[resolution[0],resolution[1]],[resolution[0],0]], dtype=np.float32)
+    basePts_2D = np.array([[0, 0],[0,resolution[1]],[resolution[0],resolution[1]],[resolution[0],0]], dtype=np.float32)
 
     # project to 3D
-    base_3D = np.zeros((4, 4), dtype=np.float32)
-
-
-    # get camera frustum in world coordinate
-    cameraFrustum = np.dot(cameraFrustum, np.linalg.inv(cameraTransform4x4).T)
-
-    # get camera frustum in image coordinate
-    cameraFrustum = np.dot(cameraFrustum, cameraIntrinsic.T)
-    cameraFrustum = cameraFrustum[:, :2] / cameraFrustum[:, 2:]
-
-    # get camera frustum in pixel coordinate
-    cameraFrustum[:, 0] = cameraFrustum[:, 0] * fx + cx
-    cameraFrustum[:, 1] = cameraFrustum[:, 1] * fy + cy
-
-    # get camera frustum in pixel coordinate
-    cameraFrustum = np.concatenate((cameraFrustum, base_2D), axis=0)
-
-    # draw camera frustum
-    draw_polygon(cameraFrustum, cameraColor, cameraName)
-
-    return
+    localPoint = (np.linalg.pinv(cameraIntrinsic3x3).T @
+                  np.hstack(
+                      (basePts_2D, np.ones((4, 1)))
+                  ).T
+                  ).T*cameraSize
+    basePts_3D = (cameraTransform4x4 @
+                np.hstack(
+                    (
+                        localPoint, np.ones((4, 1))
+                    )
+                ).T
+                ).T
 
     if figure is None:
-        figure = plt.figure()
+        figure = plt.figure(cameraName)
     ax = figure.gca(projection='3d')
+    ax.plot3D([basePts_3D[0, 0], basePts_3D[1, 0]],
+              [basePts_3D[0, 1], basePts_3D[1, 1]],
+              [basePts_3D[0, 2], basePts_3D[1, 2]], color=cameraColor)
+    ax.plot3D([basePts_3D[2, 0], basePts_3D[1, 0]],
+              [basePts_3D[2, 1], basePts_3D[1, 1]],
+              [basePts_3D[2, 2], basePts_3D[1, 2]], color=cameraColor)
+    ax.plot3D([basePts_3D[2, 0], basePts_3D[3, 0]],
+              [basePts_3D[2, 1], basePts_3D[3, 1]],
+              [basePts_3D[2, 2], basePts_3D[3, 2]], color=cameraColor)
+    ax.plot3D([basePts_3D[0, 0], basePts_3D[3, 0]],
+              [basePts_3D[0, 1], basePts_3D[3, 1]],
+              [basePts_3D[0, 2], basePts_3D[3, 2]], color=cameraColor)
+    ax.plot3D([basePts_3D[0, 0], basePts_3D[2, 0]],
+              [basePts_3D[0, 1], basePts_3D[2, 1]],
+              [basePts_3D[0, 2], basePts_3D[2, 2]], color=cameraColor)
+    ax.text(basePts_3D[0, 0], basePts_3D[0, 1], basePts_3D[0, 2], cameraName, color='b')
+    ax.scatter(cameraPosition[0], cameraPosition[1], cameraPosition[2], color='b')
 
+    ax.plot3D([cameraPosition[0], basePts_3D[0, 0]],
+              [cameraPosition[1], basePts_3D[0, 1]],
+              [cameraPosition[2], basePts_3D[0, 2]], color=cameraColor)
+    ax.plot3D([cameraPosition[0], basePts_3D[1, 0]],
+              [cameraPosition[1], basePts_3D[1, 1]],
+              [cameraPosition[2], basePts_3D[1, 2]], color=cameraColor)
+    ax.plot3D([cameraPosition[0], basePts_3D[2, 0]],
+              [cameraPosition[1], basePts_3D[2, 1]],
+              [cameraPosition[2], basePts_3D[2, 2]], color=cameraColor)
+    ax.plot3D([cameraPosition[0], basePts_3D[3, 0]],
+              [cameraPosition[1], basePts_3D[3, 1]],
+              [cameraPosition[2], basePts_3D[3, 2]], color=cameraColor)
 
+    return figure
 
-
-def draw_square_pyramid(tipPosition, basePositions):
