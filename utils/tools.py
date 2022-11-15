@@ -101,7 +101,7 @@ def rotation_matrix(theta1, theta2, theta3, order='xyz'):
     return matrix
 
 
-def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.1, cameraColor=(0, 255, 0), cameraName='cam',figure = None):
+def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.3, cameraColor='r', cameraName='cam',figure = None):
     """
     Draw camera in the scene
     :param cameraTransform4x4: camera transform matrix
@@ -113,13 +113,16 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     """
 
     # get camera transform
-    cameraPosition = cameraTransform4x4[3, :3] # Fixme: curreent local to world
+    cameraPosition = cameraTransform4x4[:3, 3]
 
     # four edge points
-    basePts_2D = np.array([[0, 0],[0,resolution[1]],[resolution[0],resolution[1]],[resolution[0],0]], dtype=np.float32)
+    basePts_2D = np.array([[0, 0],
+                           [0,resolution[1]],
+                           [resolution[0],resolution[1]],
+                           [resolution[0],0]], dtype=np.float32)
 
     # project to 3D
-    localPoint = (np.linalg.pinv(cameraIntrinsic3x3).T @
+    localPoint = (np.linalg.pinv(cameraIntrinsic3x3) @
                   np.hstack(
                       (basePts_2D, np.ones((4, 1)))
                   ).T
@@ -131,40 +134,56 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
                     )
                 ).T
                 ).T
+    # homogeneous to cartesian
+    basePts_3D = basePts_3D[:, :3] / basePts_3D[:, 3:]
+    alpha = (cameraName%300)/600 +0.5
 
     if figure is None:
         figure = plt.figure(cameraName)
     ax = figure.gca(projection='3d')
+
     ax.plot3D([basePts_3D[0, 0], basePts_3D[1, 0]],
               [basePts_3D[0, 1], basePts_3D[1, 1]],
-              [basePts_3D[0, 2], basePts_3D[1, 2]], color=cameraColor)
+              [basePts_3D[0, 2], basePts_3D[1, 2]], color=cameraColor,alpha = 0.3)
     ax.plot3D([basePts_3D[2, 0], basePts_3D[1, 0]],
               [basePts_3D[2, 1], basePts_3D[1, 1]],
-              [basePts_3D[2, 2], basePts_3D[1, 2]], color=cameraColor)
+              [basePts_3D[2, 2], basePts_3D[1, 2]], color=cameraColor,alpha = 0.3)
     ax.plot3D([basePts_3D[2, 0], basePts_3D[3, 0]],
               [basePts_3D[2, 1], basePts_3D[3, 1]],
-              [basePts_3D[2, 2], basePts_3D[3, 2]], color=cameraColor)
+              [basePts_3D[2, 2], basePts_3D[3, 2]], color=cameraColor,alpha = 0.3)
     ax.plot3D([basePts_3D[0, 0], basePts_3D[3, 0]],
               [basePts_3D[0, 1], basePts_3D[3, 1]],
-              [basePts_3D[0, 2], basePts_3D[3, 2]], color=cameraColor)
+              [basePts_3D[0, 2], basePts_3D[3, 2]], color=cameraColor,alpha = 0.3)
     ax.plot3D([basePts_3D[0, 0], basePts_3D[2, 0]],
               [basePts_3D[0, 1], basePts_3D[2, 1]],
-              [basePts_3D[0, 2], basePts_3D[2, 2]], color=cameraColor)
-    ax.text(basePts_3D[0, 0], basePts_3D[0, 1], basePts_3D[0, 2], cameraName, color='b')
-    ax.scatter(cameraPosition[0], cameraPosition[1], cameraPosition[2], color='b')
+              [basePts_3D[0, 2], basePts_3D[2, 2]], color=cameraColor,alpha = 0.3)
+    ax.text(cameraPosition[0], cameraPosition[1], cameraPosition[2], cameraName, color='b')
+    ax.scatter(cameraPosition[0], cameraPosition[1], cameraPosition[2], color='b',alpha = alpha, s = 20)
 
+    # ax.scatter(basePts_3D[1, 0], basePts_3D[1, 1], basePts_3D[1, 2],color='b',alpha = alpha, s = 20)
     ax.plot3D([cameraPosition[0], basePts_3D[0, 0]],
               [cameraPosition[1], basePts_3D[0, 1]],
-              [cameraPosition[2], basePts_3D[0, 2]], color=cameraColor)
+              [cameraPosition[2], basePts_3D[0, 2]], color=cameraColor,alpha = 0.3)
     ax.plot3D([cameraPosition[0], basePts_3D[1, 0]],
               [cameraPosition[1], basePts_3D[1, 1]],
-              [cameraPosition[2], basePts_3D[1, 2]], color=cameraColor)
+              [cameraPosition[2], basePts_3D[1, 2]], color=cameraColor,alpha = 0.3)
     ax.plot3D([cameraPosition[0], basePts_3D[2, 0]],
               [cameraPosition[1], basePts_3D[2, 1]],
-              [cameraPosition[2], basePts_3D[2, 2]], color=cameraColor)
+              [cameraPosition[2], basePts_3D[2, 2]], color=cameraColor,alpha = 0.3)
     ax.plot3D([cameraPosition[0], basePts_3D[3, 0]],
               [cameraPosition[1], basePts_3D[3, 1]],
-              [cameraPosition[2], basePts_3D[3, 2]], color=cameraColor)
+              [cameraPosition[2], basePts_3D[3, 2]], color=cameraColor,alpha = 0.3)
 
+    plt.xlabel('x')
+    plt.ylabel('y')
+    ax.set_zlabel('z')
+
+    # same scale for all axis
+    scale = 3
+    ax.set_xlim3d(-scale, scale)
+    ax.set_ylim3d(-scale, scale)
+    ax.set_zlim3d(-scale, scale)
+
+    plt.show()
     return figure
 

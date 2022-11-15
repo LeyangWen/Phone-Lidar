@@ -23,7 +23,7 @@ data_dir = os.path.join(date_dir, f'scene-{scene_no}')
 img_extension = 'jpeg'
 checkpoint_file = f'{date_dir}\scene-{scene_no}-2Dkps.pkl'
 kp_nos = 8
-portrait_flag = False
+portrait_flag = True
 oct31Test = True
 if portrait_flag:
     cam_yml = r'H:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml'
@@ -48,6 +48,8 @@ cameraPositions = []
 lineP_3ds = []
 depths = []
 pesdoDepth = 3
+
+figure = plt.figure()
 
 
 # arrange annotation based on index
@@ -93,10 +95,38 @@ for index, frame in annotation.iterrows():
 
 
             cameraTransform[:-1,:-1] = (camera_rot_3x3M.T) @ (cameraTransform[:-1,:-1]) #
-            # cameraTransform[:-1,:-1] = cameraTransform[:-1,:-1].dot(camera_rot_M.T) # fixme: one of these is correct
 
         cameraPosition = cameraTransform[:-1,-1]
         cameraPositions.append(cameraPosition)
+
+
+        draw_camera(localToWorld.T, camera_matrix, figure = figure, cameraName=index)
+        # break
+        # if index == 91:
+        #     break
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # set img kp to center of image /2 5760 4320
     # frame.img_kp = np.array([[5760/2, 4320/2],[5760/2, 4320/2],[5760/2, 4320/2],[5760/2, 4320/2],
@@ -110,6 +140,10 @@ for index, frame in annotation.iterrows():
     if portrait_flag:
         #  this is portrait
         rot_kp = np.array([[0,1],[1,0]]).dot(frame.img_kp.T).T+np.array([4320,0])
+        dist_kp = rot_kp.astype(np.float32).reshape((kp_no,1,  2))
+        undist_kp = cv2.undistortPoints(dist_kp, camera_matrix, dist_coeffs, P=camera_matrix).reshape((kp_no, 2))
+
+
         img_kp = np.hstack((rot_kp, np.ones((kp_no, 1)), 1/pesdoDepth*np.ones((kp_no, 1))))
     else:
         # this is landscape (annotation is landscape)
@@ -125,12 +159,12 @@ for index, frame in annotation.iterrows():
         ).T
 
     else:
-        localPoint = (np.linalg.pinv(camera_matrix).T @
+        localPoint = (np.linalg.pinv(camera_matrix) @
                       np.hstack(
                           (undist_kp, np.ones((kp_no, 1)))
                                 ).T
                       ).T*pesdoDepth
-        lineP_3d = (localToWorld @
+        lineP_3d = (localToWorld.T @
             np.hstack(
                 (
                     localPoint, np.ones((kp_no, 1))
@@ -155,6 +189,7 @@ ax = fig.add_subplot(111, projection='3d')
 colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k', 'w']
 text_offset = 0.05
 for i in range(1):
+    # fixme: this still look weird
     # if i%100 != 0:
     #     continue
     ax.scatter(cameraPositions[i,0], cameraPositions[i,1], cameraPositions[i,2], s=10, c='r')
