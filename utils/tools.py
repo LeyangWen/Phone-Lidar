@@ -9,6 +9,7 @@ def intersect(P0,P1):
     returns the least squares intersection of the N
     lines from the system given by eq. 13 in
     http://cal.cs.illinois.edu/~johannes/research/LS_line_intersect.pdf.
+    https://silo.tips/download/least-squares-intersection-of-lines
 
     function from: https://stackoverflow.com/questions/52088966/nearest-intersection-point-to-many-lines-in-python
     """
@@ -101,7 +102,7 @@ def rotation_matrix(theta1, theta2, theta3, order='xyz'):
     return matrix
 
 
-def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.3, cameraColor='r', cameraName='cam',figure = None):
+def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.2, cameraColor='r', cameraName='cam',figure = None):
     """
     Draw camera in the scene
     :param cameraTransform4x4: camera transform matrix
@@ -136,11 +137,12 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
                 ).T
     # homogeneous to cartesian
     basePts_3D = basePts_3D[:, :3] / basePts_3D[:, 3:]
-    alpha = (cameraName%300)/600 +0.5
+    alpha = (cameraName%300)/600 +0.3
 
     if figure is None:
         figure = plt.figure(cameraName)
     ax = figure.gca(projection='3d')
+    ztext_offset = 0.05
 
     ax.plot3D([basePts_3D[0, 0], basePts_3D[1, 0]],
               [basePts_3D[0, 1], basePts_3D[1, 1]],
@@ -157,7 +159,7 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     ax.plot3D([basePts_3D[0, 0], basePts_3D[2, 0]],
               [basePts_3D[0, 1], basePts_3D[2, 1]],
               [basePts_3D[0, 2], basePts_3D[2, 2]], color=cameraColor,alpha = 0.3)
-    ax.text(cameraPosition[0], cameraPosition[1], cameraPosition[2], cameraName, color='b')
+    # ax.text(cameraPosition[0], cameraPosition[1], cameraPosition[2] +ztext_offset, cameraName, color='b', fontsize=12)
     ax.scatter(cameraPosition[0], cameraPosition[1], cameraPosition[2], color='b',alpha = alpha, s = 20)
 
     # ax.scatter(basePts_3D[1, 0], basePts_3D[1, 1], basePts_3D[1, 2],color='b',alpha = alpha, s = 20)
@@ -184,6 +186,10 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     ax.set_ylim3d(-scale, scale)
     ax.set_zlim3d(-scale, scale)
 
-    plt.show()
-    return figure
+    # plt.show()
+    return figure, ax
+
+
+def dist(pt1, pt2):
+    return np.sqrt(np.sum((pt1 - pt2) ** 2))
 

@@ -31,8 +31,8 @@ def mouse_callback(event, x, y, flags, params):
         # write text over the left-clicked point
         cali_index += 1
         cv2.putText(img, str(cali_index), (x+40, y), cv2.FONT_HERSHEY_SIMPLEX, 8, (0, 0, 255), 4)
-        # img = cv2.line(img, (x, y), (4500, y), (0, 255, 0), thickness=2)
-        # img = cv2.line(img, (5700, y), (8000, y), (0, 255, 0), thickness=2)
+        img = cv2.line(img, (x-500, y), (x+500, y), (0, 255, 0), thickness=2)
+        img = cv2.line(img, (x, y-500), (x, y+500), (0, 255, 0), thickness=2)
         cv2.imshow(window_name, img)
         left_clicks.append([x, y])
         print(cali_index,[x, y])
@@ -48,7 +48,8 @@ def mouse_callback(event, x, y, flags, params):
 
 ####################################### CHANGE HERE BEFORE RUN #######################################
 scene_no = 1
-img_dir = f'H:\phone_Lidar\data\prelim\oct31\\scene-{scene_no}'
+img_dir = f'H:\phone_Lidar\data\prelim\oct31\\2022-10-31 16_57_40\data'
+
 img_extension = 'jpeg'
 checkpoint_file = f'H:\phone_Lidar\data\prelim\oct31\scene-{scene_no}-2Dkps.pkl'
 kp_nos = 8
@@ -98,6 +99,7 @@ while img_idx < len(img_names):
     key = cv2.waitKey(0)
 
     if key & 0xFF == ord('b'):
+        cv2.destroyAllWindows()
         break
     elif key & 0xFF == ord('r'):
         img_idx = img_idx - 1
@@ -122,10 +124,11 @@ while img_idx < len(img_names):
         continue
     annotation.loc[img_idx] = [img_name,anno_frame]
     checkpoint['annotation'] = annotation
-    img_idx = img_idx+10
+    img_idx = img_idx+1
 
 
     # annotation.img_name = annotation.img_name.str.slice_replace(stop = 58, repl='H:\phone_Lidar\data\prelim\oct31\\2022-10-31 16_57_40\data\\1')
     # annotation.img_name[1]
     with open(checkpoint_file, 'wb') as f:
         pickle.dump(checkpoint,f)
+
