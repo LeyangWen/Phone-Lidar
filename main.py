@@ -18,13 +18,19 @@ from matplotlib.patches import FancyArrowPatch
 scene = 1
 date_dir = r'H:\phone_Lidar\data\prelim\oct31'
 scene_no = 1
-data_dir = os.path.join(date_dir, f'scene-{scene_no}')
+data_dir = os.path.join(date_dir, '2022-10-31 16_57_40')
+output_dir = os.path.join(data_dir, 'output')
 
 img_extension = 'jpeg'
 checkpoint_file = f'{date_dir}\scene-{scene_no}-2Dkps.pkl'
 kp_nos = 8
 cam_yml = r'H:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml'
 
+door_gt = np.array([[1015,1015,2128,2128,1121,1121,2181,2181]]) # mm, door l,h, frame l,h
+door_sequences = [[0, 1], [3, 2], [1, 3], [2, 0], [4, 5], [7, 6], [5, 7], [6, 4]]
+
+# flags:
+display_kp = False
 ####################################### CHANGE HERE BEFORE RUN #######################################
 
 ### Read 2D keypoint annotation: pkl
@@ -46,38 +52,67 @@ figure_cam = plt.figure(200)
 
 # arrange annotation based on index
 annotation = annotation.sort_index()
-
+door_measurements = []
 for index, frame in annotation.iterrows():
     print(index)
-    # if index > 111:
-    #     break
-    # frame.name
-    # frame.img_name
-    # frame.img_kp
-
-    # # display image and plot keypoints
-    # img = cv2.imread(frame.img_name)
-    # # plot keypoints
-    # for i in range(kp_nos):
-    #     if not np.isnan(frame.img_kp[i][0]):
-    #         img = cv2.circle(img, (int(frame.img_kp[i][0]), int(frame.img_kp[i][1])), radius=20, color=(255, 0, 255), thickness=-1)
-    #         cv2.putText(img, kp_names[i], (int(frame.img_kp[i][0])+40, int(frame.img_kp[i][1])), cv2.FONT_HERSHEY_SIMPLEX, 8, (0, 0, 255), 4)
-    # # save
-    # cv2.imwrite(os.path.join(data_dir,'annotation', f'img_{index}.jpeg'), img)
 
     # read odometry json
     json_file = frame.img_name.replace(img_extension, 'json')
+
+    # method 3: measure each frame and then average
+
     with open(json_file) as f:
         data = json.load(f)
         cameraEulerAngles = data['cameraEulerAngles']  # ios-ARkit XYZ Roll-Pitch-Yaw
         camera_rot_3x3M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
         cameraTransform = np.array(data['cameraTransform'][0]).T
         localToWorld = np.array(data['localToWorld']).reshape((4, 4))
-        # depthCameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3,3))
-        # depth_cam_intrinsic_3x3M = np.linalg.pinv(depthCameraIntrinsicsInversed)
+
+        # rgb img size: 4320, 5760 ; depth img size: 192, 256
+        depth_img_scale = 256/5760
+        depth_map = np.array(data['depthMap'])
+        depthCameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3,3))
+        depth_cam_intrinsic_3x3M = np.linalg.pinv(depthCameraIntrinsicsInversed)
 
         cameraPosition = cameraTransform[:-1, -1]
         cameraPositions.append(cameraPosition)
+
+    if display_kp:
+        # display image and plot keypoints
+        img = cv2.imread(frame.img_name)
+        # plot keypoints
+        for i in range(kp_nos):
+            if not np.isnan(frame.img_kp[i][0]):
+                img = cv2.circle(img, (int(frame.img_kp[i][0]), int(frame.img_kp[i][1])), radius=20, color=(255, 0, 255), thickness=-1)
+                cv2.putText(img, kp_names[i], (int(frame.img_kp[i][0])+40, int(frame.img_kp[i][1])), cv2.FONT_HERSHEY_SIMPLEX, 8, (0, 0, 255), 4)
+        # save
+        cv2.imwrite(os.path.join(output_dir, f'img_{index}.jpeg'), img)
+
+        # display depth map and plot keypoints
+        depth_img = depth_map.copy()
+        # normalize depth_img to 0-255
+        depth_img = cv2.normalize(depth_img, None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
+        # convert gray to rgb
+        depth_img = cv2.cvtColor(depth_img, cv2.COLOR_GRAY2RGB)
+
+        # plot keypoints
+        for i in range(kp_nos):
+            if not np.isnan(frame.img_kp[i][0]):
+                depth_img = cv2.circle(depth_img, (int(frame.img_kp[i][0]*depth_img_scale), int(frame.img_kp[i][1]*depth_img_scale)), radius=2, color=(255, 0, 255), thickness=-1)
+                cv2.putText(img, kp_names[i], (int(frame.img_kp[i][0]*depth_img_scale)+40, int(frame.img_kp[i][1]*depth_img_scale)), cv2.FONT_HERSHEY_SIMPLEX, 8, (0, 0, 255), 4)
+        # save
+        cv2.imwrite(os.path.join(output_dir, f'depth_{index}.jpeg'), depth_img)
+
+    #extract depth info from depth map at keypoint location
+    Lidar_depths = []
+    for i in range(kp_nos):
+        if not np.isnan(frame.img_kp[i][0]):
+            Lidar_depth = depth_map[int(frame.img_kp[i][1]*depth_img_scale), int(frame.img_kp[i][0]*depth_img_scale)]
+            Lidar_depths.append(Lidar_depth)
+        else:
+            Lidar_depths.append(np.nan)
+    Lidar_depths = np.array(Lidar_depths)
+
 
     figure_cam,ax_cam = draw_camera(localToWorld.T, camera_matrix, figure = figure_cam, cameraName=index)
 
@@ -94,7 +129,7 @@ for index, frame in annotation.iterrows():
                   np.hstack(
                       (undist_kp, np.ones((kp_no, 1)))
                   ).T
-                  ).T * pesdoDepth
+                  ).T * (Lidar_depths.reshape((kp_no, 1)))
     lineP_3d = (localToWorld.T @
                 np.hstack(
                     (
@@ -108,6 +143,9 @@ for index, frame in annotation.iterrows():
     lineP_3ds.append(lineP_3d)
     depth = np.linalg.norm(lineP_3d - cameraPosition, axis=1)
     depths.append(depth)
+    this_measurement = measure_obj(lineP_3d, door_sequences)
+    door_measurements.append(this_measurement)
+
 
 depths = np.array(depths)
 cameraPositions = np.array(cameraPositions)
@@ -168,10 +206,12 @@ for kp in range(kp_nos):
     P0 = np.array(P0)
     P1 = np.array(P1)
     ### find best-fit 3D point
-    # rough intersection of 3D lines
-    est_kp = intersect(P0, P1)
+    # method 1: rough intersection of 3D lines
+    # est_kp = intersect(P0, P1)
+    # method 2: use Lidar depth and RANSAC
+    est_kp = pts_center_ransac(P1)
+
     est_kps[kp] = est_kp.reshape(3)
-    print(est_kp)
     ax.scatter(est_kp[0], est_kp[1], est_kp[2], s=28, color='blue', marker='P')
     ax_cam.scatter(est_kp[0], est_kp[1], est_kp[2], s=28, color=color_8[kp], marker='P')
     # ax_cam.text(est_kp[0], est_kp[1] , est_kp[2], kp, color='black')
@@ -189,19 +229,21 @@ for kp in range(kp_nos):
 ### Calculate 3D dim & pos
 # Finding the intersection point of many lines in 3D
 
-door_sequences = [[0, 1], [3, 2], [1, 3], [2, 0], [4, 5], [7, 6], [5, 7], [6, 4]]
 door_dists = np.zeros((len(door_sequences),1))
-
-
-
 for seq_id, seq in enumerate(door_sequences):
     door_dists[seq_id] = dist(est_kps[seq[0]], est_kps[seq[1]])
     ax_cam.plot([est_kps[seq[0], 0], est_kps[seq[1], 0]], [est_kps[seq[0], 1], est_kps[seq[1], 1]],
                 [est_kps[seq[0], 2], est_kps[seq[1], 2]], c='c', alpha=1)
 
-print(door_dists)
+print(f'door_dists: {door_dists*1000}')
 
+# method 2
+door_measurements = np.array(door_measurements)
+door_dists = np.nanmedian(door_measurements, axis=0)
+print(f'door_dists_median: \n{door_dists*1000}')
 
+door_dists = np.nanmean(door_measurements, axis=0)
+print(f'door_dists_mean: \n{door_dists*1000}')
 
 
 plt.show()

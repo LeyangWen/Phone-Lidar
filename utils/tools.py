@@ -1,7 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import random
 
+def dist_penalty(pt1, pt2, threshold):
+    return np.sqrt(np.sum((pt1 - pt2) ** 2)) / threshold
 
 def intersect(P0,P1):
     """P0 and P1 are NxD arrays defining N lines.
@@ -29,6 +32,29 @@ def intersect(P0,P1):
     p = np.linalg.lstsq(R,q,rcond=None)[0]
 
     return p
+
+
+def pts_center_ransac(points, num_iterations=500, threshold=0.1):
+    # Store the best estimate of the center
+    best_center = None
+    # Store the lowest error seen so far
+    lowest_error = float("inf")
+
+    # Iterate for a given number of iterations
+    for _ in range(num_iterations):
+        # Randomly choose 3 points
+        p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False)]
+        # Compute the center as the average of the 3 points
+        center = (p1 + p2 + p3) / 3
+        # Compute the error as the sum of the distances from the center to each point
+        error = sum([dist(p, center) for p in points])
+        # If the error is lower than the current lowest error, update the best center
+        if error < lowest_error:
+            lowest_error = error
+            best_center = center
+
+    # Return the center with the lowest error
+    return best_center
 
 
 def plot_3D_points(points, ax):
@@ -193,3 +219,9 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
 def dist(pt1, pt2):
     return np.sqrt(np.sum((pt1 - pt2) ** 2))
 
+
+def measure_obj(kpts, door_sequences):
+    door_dists = np.zeros((len(door_sequences), 1))
+    for seq_id, seq in enumerate(door_sequences):
+        door_dists[seq_id] = dist(kpts[seq[0]], kpts[seq[1]])
+    return door_dists
