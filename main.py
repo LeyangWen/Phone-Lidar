@@ -14,7 +14,7 @@ from matplotlib.patches import FancyArrowPatch
 # todo: verifiy if odometry is correct using calibration images
 
 ### Init parameters
-####################################### CHANGE HERE BEFORE RUN #######################################
+####################################### door #######################################
 scene = 1
 date_dir = r'H:\phone_Lidar\data\prelim\oct31'
 scene_no = 1
@@ -31,6 +31,49 @@ door_sequences = [[0, 1], [3, 2], [1, 3], [2, 0], [4, 5], [7, 6], [5, 7], [6, 4]
 
 # flags:
 display_kp = False
+####################################### CHANGE HERE BEFORE RUN #######################################
+
+####################################### mep #######################################
+scene_no = 1
+date_dir = f'H:\phone_Lidar\data\prelim\\Nov21\\Nov21\MEP1'
+
+data_dir = os.path.join(date_dir, 'data')
+output_dir = os.path.join(date_dir, 'output')
+
+img_extension = 'jpeg'
+checkpoint_file = f'{date_dir}\MEP1-2Dkps.pkl'
+kp_nos = 8
+cam_yml = r'H:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml'
+
+door_gt = np.array([[119,119,119,119,
+                    119,119,119,119,
+                    51,51,51,51]]) # mm, door l,h, frame l,h
+door_sequences = [[0,1],[2,3],[4,5],[6,7],
+                [0,2],[1,3],[4,6],[5,7],
+                [0,4],[1,5],[2,6],[3,7]]
+
+# flags:
+display_kp = False
+####################################### CHANGE HERE BEFORE RUN #######################################
+
+####################################### Wall #######################################
+scene_no = 1
+img_dir = f'H:\phone_Lidar\data\prelim\\Nov21\\Nov21\wall\data'
+
+img_extension = 'jpeg'
+checkpoint_file = f'H:\phone_Lidar\data\prelim\\Nov21\\Nov21\wall\wall-2Dkps.pkl'
+kp_nos = 5
+kp_names = ['wall_top','wall_bot','wall_right','col_top','col_bot']
+
+data_dir = os.path.join(date_dir, 'data')
+output_dir = os.path.join(date_dir, 'output')
+
+cam_yml = r'H:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml'
+
+door_gt = np.array([[2885,
+                     4894,
+                     3025]]) # mm, door l,h, frame l,h
+door_sequences = [[0,1],[1,2],[3,4]]
 ####################################### CHANGE HERE BEFORE RUN #######################################
 
 ### Read 2D keypoint annotation: pkl
@@ -163,7 +206,7 @@ for i in range(1):
     ax.scatter(cameraPositions[i, 0], cameraPositions[i, 1], cameraPositions[i, 2], s=10, c='r')
     ax.text(cameraPositions[i, 0] + text_offset, cameraPositions[i, 1] + text_offset,
             cameraPositions[i, 2] + text_offset, f"frame_{i}", color='black', fontsize=15)
-    for kp in range(8):
+    for kp in range(kp_nos):
         ax.plot([cameraPositions[i, 0], lineP_3ds[i, kp, 0]], [cameraPositions[i, 1], lineP_3ds[i, kp, 1]],
                 [cameraPositions[i, 2], lineP_3ds[i, kp, 2]], c='c')
         ax.text(lineP_3ds[i, kp, 0] + text_offset / 2 * kp, lineP_3ds[i, kp, 1] + text_offset / 2 * kp,
@@ -207,7 +250,7 @@ for kp in range(kp_nos):
     P1 = np.array(P1)
     ### find best-fit 3D point
     # method 1: rough intersection of 3D lines
-    # est_kp = intersect(P0, P1)
+    est_kp = intersect(P0, P1)
     # method 2: use Lidar depth and RANSAC
     est_kp = pts_center_ransac(P1)
 
@@ -237,7 +280,7 @@ for seq_id, seq in enumerate(door_sequences):
 
 print(f'door_dists: {door_dists*1000}')
 
-# method 2
+# method 3: frame wise mean/median
 door_measurements = np.array(door_measurements)
 door_dists = np.nanmedian(door_measurements, axis=0)
 print(f'door_dists_median: \n{door_dists*1000}')

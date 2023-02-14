@@ -46,7 +46,7 @@ def mouse_callback(event, x, y, flags, params):
         print(cali_index,[np.nan, np.nan])
 
 
-####################################### CHANGE HERE BEFORE RUN #######################################
+####################################### door #######################################
 scene_no = 1
 img_dir = f'H:\phone_Lidar\data\prelim\oct31\\2022-10-31 16_57_40\data'
 
@@ -55,6 +55,28 @@ checkpoint_file = f'H:\phone_Lidar\data\prelim\oct31\scene-{scene_no}-2Dkps.pkl'
 kp_nos = 8
 kp_names = ['door_topright','door_topleft','door_bottomright','door_bottomleft','frame_topright','frame_topleft','frame_bottomright','frame_bottomleft']
 ####################################### CHANGE HERE BEFORE RUN #######################################
+
+####################################### MEP1 #######################################
+scene_no = 1
+img_dir = f'H:\phone_Lidar\data\prelim\\Nov21\\Nov21\MEP1\data'
+
+img_extension = 'jpeg'
+checkpoint_file = f'H:\phone_Lidar\data\prelim\\Nov21\\Nov21\MEP1\MEP1-2Dkps.pkl'
+kp_nos = 8
+kp_names = ['MEP_topright','MEP_topleft','MEP_bottomright','MEP_bottomleft','wall_topright','wall_topleft','wall_bottomright','wall_bottomleft']
+####################################### CHANGE HERE BEFORE RUN #######################################
+
+####################################### Wall #######################################
+scene_no = 1
+img_dir = f'H:\phone_Lidar\data\prelim\\Nov21\\Nov21\wall\data'
+
+img_extension = 'jpeg'
+checkpoint_file = f'H:\phone_Lidar\data\prelim\\Nov21\\Nov21\wall\wall-2Dkps.pkl'
+kp_nos = 5
+kp_names = ['wall_top','wall_bot','wall_right','col_top','col_bot']
+####################################### CHANGE HERE BEFORE RUN #######################################
+
+
 try:
     with open(checkpoint_file, 'rb') as f:
         checkpoint = pickle.load(f)
@@ -75,6 +97,9 @@ while img_idx < len(img_names):
     # continue loop if img_name is in checkpoint
     if img_name in checkpoint['annotation'].img_name.values.tolist():
         print(f'{img_idx}::: img_name: {img_name} is in checkpoint')
+        img_idx = img_idx+1
+        continue
+    if img_idx%10 != 5:
         img_idx = img_idx+1
         continue
     anno_frame = []
