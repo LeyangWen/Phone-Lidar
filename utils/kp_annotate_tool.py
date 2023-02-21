@@ -76,6 +76,15 @@ kp_nos = 5
 kp_names = ['wall_top','wall_bot','wall_right','col_top','col_bot']
 ####################################### CHANGE HERE BEFORE RUN #######################################
 
+####################################### M-Air #######################################
+scene_no = 1
+img_dir = f'H:\phone_Lidar\data\prelim\M-airFeb12\Try2.5\data'
+
+img_extension = 'jpeg'
+checkpoint_file = f'H:\phone_Lidar\data\prelim\M-airFeb12\Try2.5\M-air-2Dkps.pkl'
+kp_nos = 8
+kp_names = ['TopRightFront','BotRightFront','TopRightBack','BotRightBack','TopLeftFront','BotLeftFront','TopLeftBack','BotLeftBack']
+####################################### CHANGE HERE BEFORE RUN #######################################
 
 try:
     with open(checkpoint_file, 'rb') as f:
@@ -89,7 +98,7 @@ except:
     checkpoint['annotation'] = annotation
     print(f'Created new checkpoint: {checkpoint_file}')
 
-img_names = glob.glob(f'{img_dir}\*.{img_extension}')
+img_names = sorted(glob.glob(f'{img_dir}\*.{img_extension}'))
 
 img_idx = 0
 while img_idx < len(img_names):
@@ -99,7 +108,7 @@ while img_idx < len(img_names):
         print(f'{img_idx}::: img_name: {img_name} is in checkpoint')
         img_idx = img_idx+1
         continue
-    if img_idx%10 != 5:
+    if img_idx%20 != 0:
         img_idx = img_idx+1
         continue
     anno_frame = []

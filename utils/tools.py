@@ -34,7 +34,7 @@ def intersect(P0,P1):
     return p
 
 
-def pts_center_ransac(points, num_iterations=500, threshold=0.1):
+def pts_center_ransac(points, num_iterations=500, threshold=0.1, weights=None):
     # Store the best estimate of the center
     best_center = None
     # Store the lowest error seen so far
@@ -42,8 +42,12 @@ def pts_center_ransac(points, num_iterations=500, threshold=0.1):
 
     # Iterate for a given number of iterations
     for _ in range(num_iterations):
-        # Randomly choose 3 points
-        p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False)]
+        if weights is None:
+            # Randomly choose 3 points
+            p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False)]
+        else:
+            weights = weights / np.sum(weights)
+            p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False, p=weights)]
         # Compute the center as the average of the 3 points
         center = (p1 + p2 + p3) / 3
         # Compute the error as the sum of the distances from the center to each point
@@ -225,3 +229,10 @@ def measure_obj(kpts, door_sequences):
     for seq_id, seq in enumerate(door_sequences):
         door_dists[seq_id] = dist(kpts[seq[0]], kpts[seq[1]])
     return door_dists
+
+
+def compare_gt(door_dists, gt_door_dists):
+    door_dists = np.array(door_dists)
+    gt_door_dists = np.array(gt_door_dists)
+    diff = np.abs(door_dists - gt_door_dists)
+    return diff
