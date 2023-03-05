@@ -11,9 +11,8 @@ import json
 class PhoneLidar():
     def __init__(self, config_file):
         self.config_file = config_file
-        with open(self.config_file, 'r') as f:
-            self.config = yaml.load(f, Loader=yaml.FullLoader)
-        self.checkpoint_file = self.config['checkpoint_file']
+        self.filter_range = 4
+        self.__load_config()
         self.__load_2Dkps()
         self.__load_calib()
         self.__iter_frames()
@@ -21,20 +20,25 @@ class PhoneLidar():
         self.print_measurements()
 
     def print_measurements(self):
-        for i in range(3):
+        for i in range(4):
             print()
             if i == 0:
                 measurements = self.intersect_measurements
                 print(f'method_1_intersect:')
             elif i == 1:
                 measurements = self.ransac_measurements
-                print(f'method_2_RANSAC:')
+                print(f'method_2_RANSAC:, filter_range={self.filter_range}')
             elif i == 2:
                 measurements = np.nanmedian(self.inFrame_measurements, axis=0)
                 print(f'method_3_median:')
+            elif i == 3:
+                measurements = np.average(self.inFrame_measurements, axis=0) #, weights=self.inFrame_measurements[:, :, 2])
+                print(f'method_4_weighted_mean:')
             gt_measurements = self.config['dist_gt']
             difference = compare_gt(measurements.reshape((-1))*1000, gt_measurements)
             print(f'measure,gt,diff,percentage%')
+            diffs = []
+            percentages = []
             for measure, gt, diff in zip(measurements.reshape((-1)), gt_measurements, difference):
                 # format into two decimal places
                 measure = np.round(measure*1000, 2)
@@ -42,6 +46,14 @@ class PhoneLidar():
                 diff = np.round(diff, 2)
                 percentage = np.round(diff/gt*100, 2)
                 print(f'{measure},{gt},{diff},{percentage}%')
+                diffs.append(diff)
+                percentages.append(percentage)
+            print(f'Average, ,{np.round(np.mean(diffs), 2)}, {np.round(np.mean(percentages), 2)}%')
+
+    def __load_config(self):
+        with open(self.config_file, 'r') as f:
+            self.config = yaml.load(f, Loader=yaml.FullLoader)
+            self.checkpoint_file = self.config['checkpoint_file']
 
     def __load_calib(self):
         self.camera_matrix, self.dist_coeffs = load_coefficients(self.config['cam_yml'])
@@ -52,6 +64,24 @@ class PhoneLidar():
             self.annotation = self.checkpoint['annotation'].sort_index()
             self.kp_names = self.checkpoint['kp_names']
             self.kp_nos = self.checkpoint['kp_nos']
+
+    def __load_lidar(self, frame_no):
+        # read odometry json
+        frame = self.annotation.iloc[frame_no]
+        json_file = frame.img_name.replace(self.config['img_extension'], 'json')
+        with open(json_file) as f:
+            data = json.load(f)
+            cameraEulerAngles = data['cameraEulerAngles']  # ios-ARkit XYZ Roll-Pitch-Yaw
+            camera_rot_3x3M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
+            cameraTransform = np.array(data['cameraTransform'][0]).T
+            localToWorld = np.array(data['localToWorld']).reshape((4, 4))
+
+            # rgb img size: 4320, 5760 ; depth img size: 192, 256
+            depth_map = np.array(data['depthMap'])
+            depthCameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3, 3))
+            depth_cam_intrinsic_3x3M = np.linalg.pinv(depthCameraIntrinsicsInversed)
+            cameraPosition = cameraTransform[:-1, -1]
+        return cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M
 
     def __iter_frames(self):
         self.cameraPositions = []
@@ -68,7 +98,7 @@ class PhoneLidar():
             self.cameraPositions.append(cameraPosition)
             self.depthMaps.append(depth_map)
             self.localToWorlds.append(localToWorld)
-            Lidar_depth, weight = self.__extract_kps_depth(frame_no)
+            Lidar_depth, weight = self.__extract_kps_depth(frame_no, filter_range=self.filter_range)
             self.Lidar_depths.append(Lidar_depth)
             self.weights.append(weight)
             lineP_3d = self.__project_kps(frame_no)
@@ -107,25 +137,7 @@ class PhoneLidar():
         self.intersect_measurements = measure_obj(self.est_kps1,self.config['dist_sequences'])
         self.ransac_measurements = measure_obj(self.est_kps2,self.config['dist_sequences'])
 
-    def __load_lidar(self, frame_no):
-        # read odometry json
-        frame = self.annotation.iloc[frame_no]
-        json_file = frame.img_name.replace(self.config['img_extension'], 'json')
-        with open(json_file) as f:
-            data = json.load(f)
-            cameraEulerAngles = data['cameraEulerAngles']  # ios-ARkit XYZ Roll-Pitch-Yaw
-            camera_rot_3x3M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
-            cameraTransform = np.array(data['cameraTransform'][0]).T
-            localToWorld = np.array(data['localToWorld']).reshape((4, 4))
-
-            # rgb img size: 4320, 5760 ; depth img size: 192, 256
-            depth_map = np.array(data['depthMap'])
-            depthCameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3, 3))
-            depth_cam_intrinsic_3x3M = np.linalg.pinv(depthCameraIntrinsicsInversed)
-            cameraPosition = cameraTransform[:-1, -1]
-        return cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M
-
-    def __extract_kps_depth(self, frame_no, filter_range=3):
+    def __extract_kps_depth(self, frame_no, filter_range = 3):
         # filter_range: 5m, set to 0 for no filter
         # filter_size: (2n+1)x(2n+1) smooth convolution filter, set to 0 for no filter
         # rgb img size: 4320, 5760 ; depth img size: 192, 256
@@ -145,7 +157,8 @@ class PhoneLidar():
             if filter_range != 0:
                 block = block[block < filter_range]
                 kp_weight = np.exp(-block / filter_range)  # exp(-x/range)
-                # kp_weight = (block - filter_range)**2 * 4 # 0.25(x-5)^2
+                # kp_weight = np.exp(-(block / filter_range**2))  # exp(-(x/range)^2)
+                # kp_weight = (block - filter_range)**2 /4  # 0.25(x-5)^2
                 weight[i] = np.nanmean(kp_weight)
             Lidar_depth[i] = np.nanmean(block)
         return Lidar_depth, weight

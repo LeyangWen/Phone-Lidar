@@ -34,31 +34,20 @@ def intersect(P0,P1):
     return p
 
 
-def pts_center_ransac(points, num_iterations=500, threshold=0.1, weights=None):
-    # Store the best estimate of the center
-    best_center = None
-    # Store the lowest error seen so far
-    lowest_error = float("inf")
-
-    # Iterate for a given number of iterations
-    for _ in range(num_iterations):
+def pts_center_ransac(points, num_iterations=3000, threshold=0.1, weights=None):
+    best_center = None  # Store the best estimate of the center
+    lowest_error = float("inf")  # Store the lowest error seen so far
+    for _ in range(num_iterations):  # Iterate for a given number of iterations
+        p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False)]  # Randomly choose 3 points
+        center = (p1 + p2 + p3) / 3  # Compute the center as the average of the 3 points
         if weights is None:
-            # Randomly choose 3 points
-            p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False)]
+            error = sum([dist(p, center) for p in points])  # Compute the error as the sum of the distances from the center to each point
         else:
-            weights = weights / np.sum(weights)
-            p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False, p=weights)]
-        # Compute the center as the average of the 3 points
-        center = (p1 + p2 + p3) / 3
-        # Compute the error as the sum of the distances from the center to each point
-        error = sum([dist(p, center) for p in points])
-        # If the error is lower than the current lowest error, update the best center
-        if error < lowest_error:
+            error = sum([weights[i] * dist(p, center) for i, p in enumerate(points)])  # Compute the error as the sum of the distances from the center to each point
+        if error < lowest_error:  # If the error is lower than the current lowest error, update the best center
             lowest_error = error
             best_center = center
-
-    # Return the center with the lowest error
-    return best_center
+    return best_center  # Return the center with the lowest error
 
 
 def plot_3D_points(points, ax):
@@ -236,3 +225,26 @@ def compare_gt(door_dists, gt_door_dists):
     gt_door_dists = np.array(gt_door_dists)
     diff = np.abs(door_dists - gt_door_dists)
     return diff
+
+
+def plot_histogram(measurements, gt_measurements, title='Histogram'):
+    """
+    plot a histogram of measurements, and a vertical line for the ground truth, mean, and median
+    :param measurements:
+    :param gt_measurements:
+    :param title:
+    :return:
+    """
+    fig, ax = plt.subplots()
+    measurements = measurements[~np.isnan(measurements)]
+    ax.hist(measurements, bins=20)
+    ax.axvline(np.nanmean(measurements), color='r', linestyle='dashed', linewidth=1, label='mean')
+    ax.axvline(np.nanmedian(measurements), color='g', linestyle='dashed', linewidth=1, label='median')
+    ax.axvline(gt_measurements, color='black', linestyle='dashed', linewidth=3, label='gt')
+    ax.legend()
+    plt.title(title)
+    plt.show()
+    return fig, ax
+
+
+

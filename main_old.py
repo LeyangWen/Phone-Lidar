@@ -225,7 +225,6 @@ ax = fig.add_subplot(111, projection='3d')
 colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k', 'w']
 text_offset = 0.05
 for i in range(1):
-    # fixme: this still look weird
     # if i%100 != 0:
     #     continue
     ax.scatter(cameraPositions[i, 0], cameraPositions[i, 1], cameraPositions[i, 2], s=10, c='r')

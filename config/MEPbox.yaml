@@ -1,14 +1,33 @@
+
+# w. stabilizer
 target: MEPbox
-date: Feb12
-data_dir: H:\phone_Lidar\data\prelim\M-airFeb12\Try2.5\data
+date: Feb27
+data_dir: H:\phone_Lidar\data\prelim\LabFeb17\MEP\data
+checkpoint_file: H:\phone_Lidar\data\prelim\LabFeb17\MEP\MEPbox-2Dkps.pkl
+cam_yml: H:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml
 data_type: img
 img_extension: jpeg
-checkpoint_file: H:\phone_Lidar\data\prelim\M-airFeb12\Try2.5\M-air-2Dkps.pkl
-cam_yml: H:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml
+
+# w/o stabilizer
+#target: MEPbox
+#date: Nov21
+#data_dir: H:\phone_Lidar\data\prelim\Nov21\Nov21\MEP1\data
+#checkpoint_file: H:\phone_Lidar\data\prelim\Nov21\Nov21\MEP1\MEP1-2Dkps.pkl
+#cam_yml: H:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml
+#data_type: img
+#img_extension: jpeg
+
+
+
 
 kp_nos: 8
-kp_names: ['TopRightFront,BotRightFront,TopRightBack,BotRightBack,TopLeftFront,BotLeftFront,TopLeftBack,BotLeftBack']
-dist_gt: [[3158, 3144, 3177, 3177, 5731, 5711, 11140, 11123]]
-dist_sequences: [[0,1],[2,3],[4,5],[6,7],[1,3],[5,7],[1,5],[3,7]]
+kp_names: ['MEP_topright','MEP_topleft','MEP_bottomright','MEP_bottomleft',
+           'wall_topright','wall_topleft','wall_bottomright','wall_bottomleft']
+dist_gt: [119.5,119.5,119.5,119.5,
+           120,120,120,120,
+           61.5,61.5,61.5,61.5]
+dist_sequences: [[0,1],[2,3],[4,5],[6,7],
+                 [0,2],[1,3],[4,6],[5,7],
+                 [0,4],[1,5],[2,6],[3,7]]
 
 
