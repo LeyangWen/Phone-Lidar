@@ -29,10 +29,10 @@ class PhoneLidar():
                 measurements = self.ransac_measurements
                 print(f'method_2_RANSAC:, filter_range={self.filter_range}')
             elif i == 2:
-                measurements = np.nanmedian(self.inFrame_measurements, axis=0)
+                measurements = np.nanmedian(self.inFrame_measurements, axis=0)#, weights=self.measurement_weights)
                 print(f'method_3_median:')
             elif i == 3:
-                measurements = np.nanmean(self.inFrame_measurements, axis=0) #, weights=self.inFrame_measurements[:, :, 2])
+                measurements = np.nanmean(self.inFrame_measurements, axis=0)#, weights=self.measurement_weights)
                 print(f'method_4_weighted_mean:')
             gt_measurements = self.config['dist_gt']
             difference = compare_gt(measurements.reshape((-1))*1000, gt_measurements)
@@ -91,6 +91,7 @@ class PhoneLidar():
         self.lineP_3ds = []
         self.inFrame_measurements = []
         self.weights = []
+        self.measurement_weights = []
         for frame_no, [frame_idx, frame] in enumerate(self.annotation.iterrows()):
             print(f'frame {frame_no}/{len(self.annotation)}', end='\r')
             cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.__load_lidar(
@@ -105,6 +106,7 @@ class PhoneLidar():
             self.lineP_3ds.append(lineP_3d)
             # method 3
             self.inFrame_measurements.append(measure_obj(lineP_3d, self.config['dist_sequences']))
+            self.measurement_weights.append(measure_obj(lineP_3d, self.config['dist_sequences']))
         self.inFrame_measurements = np.array(self.inFrame_measurements)
         self.lineP_3ds = np.array(self.lineP_3ds)
         self.weights = np.array(self.weights)
@@ -156,7 +158,7 @@ class PhoneLidar():
             block = depth_map[x - filter_size:x + filter_size + 1, y - filter_size:y + filter_size + 1]
             if filter_range != 0:
                 block = block[block < filter_range]
-                kp_weight = np.exp(-block / filter_range)  # exp(-x/range)
+                kp_weight = np.exp(-block / filter_range)/np.exp(1)  # exp(-x/range)
                 # kp_weight = np.exp(-(block / filter_range**2))  # exp(-(x/range)^2)
                 # kp_weight = (block - filter_range)**2 /4  # 0.25(x-5)^2
                 weight[i] = np.nanmean(kp_weight)
