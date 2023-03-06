@@ -32,7 +32,7 @@ class PhoneLidar():
                 measurements = np.nanmedian(self.inFrame_measurements, axis=0)
                 print(f'method_3_median:')
             elif i == 3:
-                measurements = np.average(self.inFrame_measurements, axis=0) #, weights=self.inFrame_measurements[:, :, 2])
+                measurements = np.nanmean(self.inFrame_measurements, axis=0) #, weights=self.inFrame_measurements[:, :, 2])
                 print(f'method_4_weighted_mean:')
             gt_measurements = self.config['dist_gt']
             difference = compare_gt(measurements.reshape((-1))*1000, gt_measurements)
@@ -68,7 +68,7 @@ class PhoneLidar():
     def __load_lidar(self, frame_no):
         # read odometry json
         frame = self.annotation.iloc[frame_no]
-        json_file = frame.img_name.replace(self.config['img_extension'], 'json')
+        json_file = frame.img_name.replace(self.config['img_extension'], 'json').replace('H:', 'Y:')
         with open(json_file) as f:
             data = json.load(f)
             cameraEulerAngles = data['cameraEulerAngles']  # ios-ARkit XYZ Roll-Pitch-Yaw
@@ -131,7 +131,7 @@ class PhoneLidar():
             # method 1: rough intersection of 3D lines
             est_kp1 = intersect(P0, P1)
             # method 2: use Lidar depth and RANSAC
-            est_kp2 = pts_center_ransac(P1,weights=weights)
+            est_kp2 = pts_center_ransac(P1, weights=weights)
             self.est_kps1[kp] = est_kp1.reshape(3)
             self.est_kps2[kp] = est_kp2.reshape(3)
         self.intersect_measurements = measure_obj(self.est_kps1,self.config['dist_sequences'])

@@ -2,18 +2,18 @@
 # w. stabilizer
 target: 'door'
 date: 'Feb17'
-data_dir: 'H:\phone_Lidar\data\prelim\LabFeb17\door\data'
+data_dir: 'Y:\phone_Lidar\data\prelim\LabFeb17\door\data'
 data_type: 'img'
 img_extension: 'jpeg'
-checkpoint_file: 'H:\phone_Lidar\data\prelim\LabFeb17\door\door-2Dkps.pkl'
-cam_yml: 'H:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml'
+checkpoint_file: 'Y:\phone_Lidar\data\prelim\LabFeb17\door\door-2Dkps.pkl'
+cam_yml: 'Y:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml'
 
 # w/o stabilizer
 #target: MEPbox
 #date: Oct31
-#data_dir: H:\phone_Lidar\data\prelim\oct31\2022-10-31 16_57_40\data
-#checkpoint_file: H:\phone_Lidar\data\prelim\oct31\scene-1-2Dkps.pkl
-#cam_yml: H:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml
+#data_dir: Y:\phone_Lidar\data\prelim\oct31\2022-10-31 16_57_40\data
+#checkpoint_file: Y:\phone_Lidar\data\prelim\oct31\scene-1-2Dkps.pkl
+#cam_yml: Y:\phone_Lidar\data\prelim\oct11\Hongxiao_portrait.yml
 #data_type: img
 #img_extension: jpeg
 

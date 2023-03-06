@@ -34,20 +34,43 @@ def intersect(P0,P1):
     return p
 
 
-def pts_center_ransac(points, num_iterations=3000, threshold=0.1, weights=None):
+def pts_center_ransac(points, num_iterations=3000, err_threshold=0.5, weights=None, point_threshold=10):
+    # mediumn err_threshold=0.5
+    # large err_threshold=1
+    # small err_threshold=0.1
     best_center = None  # Store the best estimate of the center
-    lowest_error = float("inf")  # Store the lowest error seen so far
+    best_inliner_no = 0  # Store the lowest error seen so far
+    best_inliner_list = []
+    best_loss = np.inf  # Store the lowest error seen so far
     for _ in range(num_iterations):  # Iterate for a given number of iterations
+        inliner_list = []
+        loss = 0
         p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False)]  # Randomly choose 3 points
         center = (p1 + p2 + p3) / 3  # Compute the center as the average of the 3 points
-        if weights is None:
-            error = sum([dist(p, center) for p in points])  # Compute the error as the sum of the distances from the center to each point
-        else:
-            error = sum([weights[i] * dist(p, center) for i, p in enumerate(points)])  # Compute the error as the sum of the distances from the center to each point
-        if error < lowest_error:  # If the error is lower than the current lowest error, update the best center
-            lowest_error = error
+
+        for i, point in enumerate(points):
+            point_dist = dist(center, point)
+            if point_dist < err_threshold:
+                inliner_list.append(point)
+                if weights is None:
+                    loss += (point_dist/err_threshold)**2
+                else:
+                    loss += weights[i]/np.exp(1) * np.exp(point_dist/err_threshold)/np.exp(1)
+            else:
+                loss += 1
+
+        if loss < best_loss:
             best_center = center
+            best_loss = loss
+            best_inliner_list = inliner_list
+            best_inliner_no = len(inliner_list)
+            print(len(inliner_list))
+    best_inliner_list = np.array(best_inliner_list)
+    best_center = best_inliner_list.mean(axis=0)
+    print('best_inliner_no: ', best_inliner_no)
+
     return best_center  # Return the center with the lowest error
+
 
 
 def plot_3D_points(points, ax):

@@ -1,10 +1,10 @@
 target: 'Mair'
 date: 'Feb12'
-data_dir: 'H:\phone_Lidar\data\prelim\M-airFeb12\Try2.5\data'
+data_dir: 'Y:\phone_Lidar\data\prelim\M-airFeb12\Try2.5\data'
 data_type: 'img'
 img_extension: 'jpeg'
-checkpoint_file: 'H:\phone_Lidar\data\prelim\M-airFeb12\Try2.5\M-air-2Dkps.pkl'
-cam_yml: 'H:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml'
+checkpoint_file: 'Y:\phone_Lidar\data\prelim\M-airFeb12\Try2.5\M-air-2Dkps.pkl'
+cam_yml: 'Y:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml'
 
 kp_nos: 8
 kp_names: ['TopRightFront,BotRightFront,TopRightBack,BotRightBack,TopLeftFront,BotLeftFront,TopLeftBack,BotLeftBack']
