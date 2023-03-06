@@ -41,11 +41,11 @@ def pts_center_ransac(points, num_iterations=3000, err_threshold=0.5, weights=No
     best_center = None  # Store the best estimate of the center
     best_inliner_no = 0  # Store the lowest error seen so far
     best_inliner_list = []
-
+    best_inliner_weight = []
     best_loss = np.inf  # Store the lowest error seen so far
     for _ in range(num_iterations):  # Iterate for a given number of iterations
         inliner_list = []
-        best_inliner_weight = []
+        inliner_weight = []
         loss = 0
         p1, p2, p3 = points[np.random.choice(points.shape[0], 3, replace=False)]  # Randomly choose 3 points
         center = (p1 + p2 + p3) / 3  # Compute the center as the average of the 3 points
@@ -53,8 +53,9 @@ def pts_center_ransac(points, num_iterations=3000, err_threshold=0.5, weights=No
         for i, point in enumerate(points):
             point_dist = dist(center, point)
             if point_dist < err_threshold:
+
                 inliner_list.append(point)
-                best_inliner_weight.append(weights[i])
+                inliner_weight.append(weights[i])
                 if weights is None:
                     loss += (point_dist/err_threshold)**2
                 else:
@@ -67,7 +68,8 @@ def pts_center_ransac(points, num_iterations=3000, err_threshold=0.5, weights=No
             best_loss = loss
             best_inliner_list = inliner_list
             best_inliner_no = len(inliner_list)
-            # print(len(inliner_list))
+            best_inliner_weight = inliner_weight
+
     best_inliner_list = np.array(best_inliner_list)
     best_inliner_weight = np.array([best_inliner_weight,best_inliner_weight,best_inliner_weight]).T
     best_center = np.average(best_inliner_list, axis=0, weights=best_inliner_weight)  ## weighted point center

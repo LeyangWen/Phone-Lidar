@@ -2,7 +2,7 @@ from LidarOutput import PhoneLidar
 from utils.tools import *
 
 config_file = 'config/Mair.yaml'
-config_file = 'config/door.yaml'
+# config_file = 'config/door.yaml'
 # config_file = 'config/MEPbox.yaml'
 
 lidar = PhoneLidar(config_file)
