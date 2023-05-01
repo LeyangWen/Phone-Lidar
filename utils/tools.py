@@ -170,7 +170,7 @@ def rotation_matrix(theta1, theta2, theta3, order='xyz'):
     return matrix
 
 
-def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.2, cameraColor='r', cameraName='cam',figure = None):
+def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.05, cameraColor='r', cameraName='cam', figure_ax = None):
     """
     Draw camera in the scene
     :param cameraTransform4x4: camera transform matrix
@@ -207,9 +207,11 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     basePts_3D = basePts_3D[:, :3] / basePts_3D[:, 3:]
     alpha = (cameraName%300)/600 +0.3
 
-    if figure is None:
+    if figure_ax is None:
         figure = plt.figure(cameraName)
-    ax = figure.gca(projection='3d')
+        ax = figure.add_subplot(111, projection='3d')
+    else:
+        figure, ax = figure_ax
     ztext_offset = 0.05
 
     ax.plot3D([basePts_3D[0, 0], basePts_3D[1, 0]],
@@ -227,7 +229,7 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     ax.plot3D([basePts_3D[0, 0], basePts_3D[2, 0]],
               [basePts_3D[0, 1], basePts_3D[2, 1]],
               [basePts_3D[0, 2], basePts_3D[2, 2]], color=cameraColor,alpha = 0.3)
-    # ax.text(cameraPosition[0], cameraPosition[1], cameraPosition[2] +ztext_offset, cameraName, color='b', fontsize=12)
+    ax.text(cameraPosition[0], cameraPosition[1], cameraPosition[2] +ztext_offset, cameraName, color='b', fontsize=8)
     ax.scatter(cameraPosition[0], cameraPosition[1], cameraPosition[2], color='b',alpha = alpha, s = 20)
 
     # ax.scatter(basePts_3D[1, 0], basePts_3D[1, 1], basePts_3D[1, 2],color='b',alpha = alpha, s = 20)
@@ -248,11 +250,11 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     plt.ylabel('y')
     ax.set_zlabel('z')
 
-    # same scale for all axis
-    scale = 3
-    ax.set_xlim3d(-scale, scale)
-    ax.set_ylim3d(-scale, scale)
-    ax.set_zlim3d(-scale, scale)
+    # # same scale for all axis
+    # scale = 3
+    # ax.set_xlim3d(-scale, scale)
+    # ax.set_ylim3d(-scale, scale)
+    # ax.set_zlim3d(-scale, scale)
 
     # plt.show()
     return figure, ax

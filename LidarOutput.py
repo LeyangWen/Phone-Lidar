@@ -208,10 +208,7 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         self.height = 7
         super().__init__(config_file)
         self.config_file = config_file
-        # self.__iter_frames()
-        # self.__iter_kps()
-        # self.print_measurements()
-        frame_no = 89
+        frame_no = 32
         (self.get_gt_camera_pose(self.get_checkerboard(frame_no)))
         print()
         (self.load_lidar(frame_no))
@@ -265,7 +262,7 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         RT4x4 = np.eye(4)
         RT4x4[:3, :3] = rotation_matrix
         RT4x4[:3, 3] = translation_vector.reshape((3,))
-        return success, rotation_matrix, translation_vector, rotation_vector, RT4x4
+        return success, rotation_matrix, translation_vector, rotation_vector, RT4x4.T
 
     def iter_frames(self):
         self.cameraPositions = []
@@ -276,16 +273,34 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         self.inFrame_measurements = []
         self.weights = []
         self.measurement_weights = []
+        figure_gt_cam_pos = plt.figure('GT checkerboard camera position')
+        ax_cam = figure_gt_cam_pos.add_subplot(111, projection='3d')
+        figure_lidar_cam_pos = plt.figure('Lidar camera position')
+        ax_lidar_cam = figure_lidar_cam_pos.add_subplot(111, projection='3d')
+        # draw x y z axis that go through the origin
+        ax_cam.quiver(0, 0, 0, 1, 0, 0, color='r')
+        ax_cam.quiver(0, 0, 0, 0, 1, 0, color='g')
+        ax_cam.quiver(0, 0, 0, 0, 0, 1, color='b')
+        ax_lidar_cam.quiver(0, 0, 0, 1, 0, 0, color='r')
+        ax_lidar_cam.quiver(0, 0, 0, 0, 1, 0, color='g')
+        ax_lidar_cam.quiver(0, 0, 0, 0, 0, 1, color='b')
         for frame_no, [frame_idx, frame] in enumerate(self.annotation.iterrows()):
+            if frame_no == 25:
+                break
             print(f'frame {frame_no}/{len(self.annotation)}', end='\r')
             cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.load_lidar(
                 frame_no)
             corners = self.get_checkerboard(frame_no)
+            camera4x4M = np.eye(4)
+            camera4x4M[:3, :3] = camera_rot_3x3M
+            camera4x4M[:3, 3] = cameraPosition.reshape((3,))
+            figure_lidar_cam_pos, ax_lidar_cam = draw_camera(camera4x4M, self.camera_matrix, figure_ax=[figure_lidar_cam_pos,ax_lidar_cam],
+                                                    cameraName=frame_no)
             if corners is False:
                 print(f'frame {frame_no} has no checkerboard')
-
             else:
                 localToWorld = self.get_gt_camera_pose(corners)[4]
+                figure_gt_cam_pos, ax_cam = draw_camera(localToWorld.T, self.camera_matrix, figure_ax=[figure_gt_cam_pos,ax_cam], cameraName=frame_no)
             self.cameraPositions.append(cameraPosition)
             self.depthMaps.append(depth_map)
             self.localToWorlds.append(localToWorld)
@@ -300,5 +315,5 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         self.inFrame_measurements = np.array(self.inFrame_measurements)
         self.lineP_3ds = np.array(self.lineP_3ds)
         self.weights = np.array(self.weights)
-
+        plt.show()
 
