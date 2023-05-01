@@ -6,3 +6,13 @@ named and filled with lorem ipsum.
 You can look around to get an idea how to structure your project and, when done, you can safely delete this project.
 
 [Learn more about creating GitLab projects.](https://docs.gitlab.com/ee/gitlab-basics/create-project.html)
+
+
+## Install
+`pip install -r requirements.txt`
+
+Also install app on iPhones with Lidar sensor here https://github.com/Waley-Z/ios-depth-point-cloud
+
+
+
+

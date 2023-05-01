@@ -15,8 +15,11 @@ class PhoneLidar():
         self.__load_config()
         self.__load_2Dkps()
         self.__load_calib()
-        self.__iter_frames()
-        self.__iter_kps()
+        self.run()
+
+    def run(self):
+        self.iter_frames()
+        self.iter_kps()
         self.print_measurements()
 
     def print_measurements(self):
@@ -65,7 +68,7 @@ class PhoneLidar():
             self.kp_names = self.checkpoint['kp_names']
             self.kp_nos = self.checkpoint['kp_nos']
 
-    def __load_lidar(self, frame_no):
+    def load_lidar(self, frame_no):
         # read odometry json
         frame = self.annotation.iloc[frame_no]
         json_file = frame.img_name.replace(self.config['img_extension'], 'json').replace('H:', 'Y:')
@@ -83,7 +86,7 @@ class PhoneLidar():
             cameraPosition = cameraTransform[:-1, -1]
         return cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M
 
-    def __iter_frames(self):
+    def iter_frames(self):
         self.cameraPositions = []
         self.depthMaps = []
         self.localToWorlds = []
@@ -94,15 +97,15 @@ class PhoneLidar():
         self.measurement_weights = []
         for frame_no, [frame_idx, frame] in enumerate(self.annotation.iterrows()):
             print(f'frame {frame_no}/{len(self.annotation)}', end='\r')
-            cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.__load_lidar(
+            cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.load_lidar(
                 frame_no)
             self.cameraPositions.append(cameraPosition)
             self.depthMaps.append(depth_map)
             self.localToWorlds.append(localToWorld)
-            Lidar_depth, weight = self.__extract_kps_depth(frame_no, filter_range=self.filter_range)
+            Lidar_depth, weight = self.extract_kps_depth(frame_no, filter_range=self.filter_range)
             self.Lidar_depths.append(Lidar_depth)
             self.weights.append(weight)
-            lineP_3d = self.__project_kps(frame_no)
+            lineP_3d = self.project_kps(frame_no)
             self.lineP_3ds.append(lineP_3d)
             # method 3
             self.inFrame_measurements.append(measure_obj(lineP_3d, self.config['dist_sequences']))
@@ -111,7 +114,7 @@ class PhoneLidar():
         self.lineP_3ds = np.array(self.lineP_3ds)
         self.weights = np.array(self.weights)
 
-    def __iter_kps(self):
+    def iter_kps(self):
         self.est_kps1 = np.zeros((self.kp_nos, 3))
         self.est_kps2 = np.zeros((self.kp_nos, 3))
         for kp in range(self.kp_nos):
@@ -139,7 +142,7 @@ class PhoneLidar():
         self.intersect_measurements = measure_obj(self.est_kps1,self.config['dist_sequences'])
         self.ransac_measurements = measure_obj(self.est_kps2,self.config['dist_sequences'])
 
-    def __extract_kps_depth(self, frame_no, filter_range = 3):
+    def extract_kps_depth(self, frame_no, filter_range = 3):
         # filter_range: 5m, set to 0 for no filter
         # filter_size: (2n+1)x(2n+1) smooth convolution filter, set to 0 for no filter
         # rgb img size: 4320, 5760 ; depth img size: 192, 256
@@ -165,10 +168,10 @@ class PhoneLidar():
             Lidar_depth[i] = np.nanmean(block)
         return Lidar_depth, weight
 
-    def __project_kps(self, frame_no):
+    def project_kps(self, frame_no):
         # project kps to 3D
         frame = self.annotation.iloc[frame_no]
-        cameraPosition = self.cameraPositions[frame_no]
+        # cameraPosition = self.cameraPositions[frame_no]
         localToWorld = self.localToWorlds[frame_no]
         # camera_rot_3x3M = self.camera_rot_3x3M[frame_no]
         # depth_cam_intrinsic_3x3M = self.depth_cam_intrinsic_3x3M[frame_no]
@@ -196,60 +199,25 @@ class PhoneLidar():
 
         # depth = np.linalg.norm(lineP_3d - cameraPosition, axis=1) # just for checking
         return lineP_3d
+
 
 class PhoneLidarCheckerboardValidate(PhoneLidar):
     def __init__(self, config_file):
-        self.square_size = 0.025
+        self.square_size = 0.0288  # 2.88cm
         self.width = 5
         self.height = 7
-        # super().__init__(config_file)
+        super().__init__(config_file)
         self.config_file = config_file
-        self.filter_range = 4
-        self.__load_config()
-        self.__load_2Dkps()
-        self.__load_calib()
         # self.__iter_frames()
         # self.__iter_kps()
         # self.print_measurements()
-        frame_no = 0
-        print(self.get_GT_camera_pose(self.get_checkerboard(frame_no)))
+        frame_no = 89
+        (self.get_gt_camera_pose(self.get_checkerboard(frame_no)))
         print()
-        print(self.get_ios_camera_pose(frame_no))
+        (self.load_lidar(frame_no))
 
-
-
-
-    def __project_kps(self, frame_no):
-        # project kps to 3D
-        frame = self.annotation.iloc[frame_no]
-        cameraPosition = self.cameraPositions[frame_no]
-        localToWorld = self.localToWorlds[frame_no]
-        # camera_rot_3x3M = self.camera_rot_3x3M[frame_no]
-        # depth_cam_intrinsic_3x3M = self.depth_cam_intrinsic_3x3M[frame_no]
-        Lidar_depths = self.Lidar_depths[frame_no]
-        kp_no = self.kp_nos
-        rot_kp = frame.img_kp
-        dist_kp = rot_kp.astype(np.float32).reshape((kp_no, 1, 2))
-        undist_kp = cv2.undistortPoints(dist_kp, self.camera_matrix, self.dist_coeffs, P=self.camera_matrix).reshape((kp_no, 2))
-
-        localPoint = (np.linalg.pinv(self.camera_matrix) @
-                      np.hstack(
-                          (undist_kp, np.ones((kp_no, 1)))
-                      ).T
-                      ).T * (Lidar_depths.reshape((kp_no, 1)))
-        lineP_3d = (localToWorld.T @
-                    np.hstack(
-                        (
-                            localPoint, np.ones((kp_no, 1))
-                        )
-                    ).T
-                    ).T
-
-        lineP_3d = np.array([np.divide(lineP_3d[:, 0], lineP_3d[:, 3].T), np.divide(lineP_3d[:, 1], lineP_3d[:, 3].T),
-                             np.divide(lineP_3d[:, 2], lineP_3d[:, 3].T)]).T
-
-        # depth = np.linalg.norm(lineP_3d - cameraPosition, axis=1) # just for checking
-        return lineP_3d
+    # def run(self):
+    #     print('overriding run()')
 
     def get_checkerboard(self, frame_no):
         frame = self.annotation.iloc[frame_no]
@@ -262,39 +230,75 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         if ret:
             corners = corners.reshape(-1, 2)
             corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-            img = cv2.drawChessboardCorners(img, (self.width, self.height), corners2, ret)
-            # cv2.imshow('img', img)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
+            show_img = False
+            if show_img:
+                img = cv2.drawChessboardCorners(img, (self.width, self.height), corners2, ret)
+                # write numbers on corners
+                for i in range(corners2.shape[0]):
+                    img = cv2.putText(img, str(i), tuple(corners2[i].astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3, cv2.LINE_AA)
+                scale_width = 640 / img.shape[1]
+                scale_height = 480 / img.shape[0]
+                scale = min(scale_width, scale_height) * 2  # 3 for 1 screen, 5 for 2 screen
+                window_width = int(img.shape[1] * scale)
+                window_height = int(img.shape[0] * scale)
+                window_name = f"img_%.4d" % frame_no
+                cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(window_name, window_width, window_height)
+                cv2.moveWindow(window_name, 40, 30)
+                cv2.imshow(window_name, img)
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
             return corners2
         else:
-            return None
+            return ret
 
-    def get_GT_camera_pose(self, corners):
+    def get_gt_camera_pose(self, carpet_2D):
         # solve pnp
         carpet_3D = np.zeros((self.width * self.height, 3), np.float32)
-        carpet_3D[:, :2] = np.mgrid[0:self.width, 0:self.height].T.reshape(-1, 2)
+        for w in range(self.width):
+            for h in range(self.height):
+                carpet_3D[h * self.width + w, :] = np.array([self.width-w, h, 0])
+        # print(carpet_3D)
         carpet_3D *= self.square_size
-        carpet_2D = corners
         success, rotation_vector, translation_vector = cv2.solvePnP(carpet_3D, carpet_2D, self.camera_matrix, self.dist_coeffs, flags=0)
         rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
-        return success, rotation_matrix, translation_vector, rotation_vector
+        RT4x4 = np.eye(4)
+        RT4x4[:3, :3] = rotation_matrix
+        RT4x4[:3, 3] = translation_vector.reshape((3,))
+        return success, rotation_matrix, translation_vector, rotation_vector, RT4x4
 
-    def get_ios_camera_pose(self, frame_no):
-        # read odometry json
-        frame = self.annotation.iloc[frame_no]
-        json_file = frame.img_name.replace(self.config['img_extension'], 'json')
-        with open(json_file) as f:
-            data = json.load(f)
-            cameraEulerAngles = data['cameraEulerAngles']  # ios-ARkit XYZ Roll-Pitch-Yaw
-            camera_rot_3x3M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
-            cameraTransform = np.array(data['cameraTransform'][0]).T
-            localToWorld = np.array(data['localToWorld']).reshape((4, 4))
+    def iter_frames(self):
+        self.cameraPositions = []
+        self.depthMaps = []
+        self.localToWorlds = []
+        self.Lidar_depths = []
+        self.lineP_3ds = []
+        self.inFrame_measurements = []
+        self.weights = []
+        self.measurement_weights = []
+        for frame_no, [frame_idx, frame] in enumerate(self.annotation.iterrows()):
+            print(f'frame {frame_no}/{len(self.annotation)}', end='\r')
+            cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.load_lidar(
+                frame_no)
+            corners = self.get_checkerboard(frame_no)
+            if corners is False:
+                print(f'frame {frame_no} has no checkerboard')
 
-            # rgb img size: 4320, 5760 ; depth img size: 192, 256
-            depth_map = np.array(data['depthMap'])
-            depthCameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3, 3))
-            depth_cam_intrinsic_3x3M = np.linalg.pinv(depthCameraIntrinsicsInversed)
-            cameraPosition = cameraTransform[:-1, -1]
-        return cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M
+            else:
+                localToWorld = self.get_gt_camera_pose(corners)[4]
+            self.cameraPositions.append(cameraPosition)
+            self.depthMaps.append(depth_map)
+            self.localToWorlds.append(localToWorld)
+            Lidar_depth, weight = self.extract_kps_depth(frame_no, filter_range=self.filter_range)
+            self.Lidar_depths.append(Lidar_depth)
+            self.weights.append(weight)
+            lineP_3d = self.project_kps(frame_no)
+            self.lineP_3ds.append(lineP_3d)
+            # method 3
+            self.inFrame_measurements.append(measure_obj(lineP_3d, self.config['dist_sequences']))
+            self.measurement_weights.append(measure_obj(lineP_3d, self.config['dist_sequences']))
+        self.inFrame_measurements = np.array(self.inFrame_measurements)
+        self.lineP_3ds = np.array(self.lineP_3ds)
+        self.weights = np.array(self.weights)
+
 

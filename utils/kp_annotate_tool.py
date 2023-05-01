@@ -32,11 +32,12 @@ def mouse_callback(event, x, y, flags, params):
         # write text over the left-clicked point
         cali_index += 1
         cv2.putText(img, str(cali_index), (x+40, y), cv2.FONT_HERSHEY_SIMPLEX, 8, (0, 0, 255), 4)
-        img = cv2.line(img, (x-500, y), (x+500, y), (0, 255, 0), thickness=2)
-        img = cv2.line(img, (x, y-500), (x, y+500), (0, 255, 0), thickness=2)
-        cv2.imshow(window_name, img)
+        cross_size = 250
+        img = cv2.line(img, (x-cross_size, y), (x+cross_size, y), (0, 255, 0), thickness=2)
+        img = cv2.line(img, (x, y-cross_size), (x, y+cross_size), (0, 255, 0), thickness=2)
         left_clicks.append([x, y])
         print(cali_index,[x, y])
+        cv2.imshow(window_name, img)
 
 
     if event == 2:
@@ -86,11 +87,11 @@ def mouse_callback(event, x, y, flags, params):
 # kp_nos = 8
 # kp_names = ['TopRightFront','BotRightFront','TopRightBack','BotRightBack','TopLeftFront','BotLeftFront','TopLeftBack','BotLeftBack']
 # ####################################### CHANGE HERE BEFORE RUN #######################################
-
-config_file = '/config/1_init_test/door.yaml'
-config_file = '/config/1_init_test/Mair.yaml'
-config_file = '/config/1_init_test/MEPbox.yaml'
-config_file = '/config/2_odometry_check/door.yaml'
+base_dir = r'C:\Users\Public\Documents\Vicon\vicon_coding_projects\Phone-Lidar'
+config_file = f'{base_dir}/config/1_init_test/door.yaml'
+config_file = f'{base_dir}/config/1_init_test/Mair.yaml'
+config_file = f'{base_dir}/config/1_init_test/MEPbox.yaml'
+config_file = f'{base_dir}/config/2_odometry_check/door.yaml'
 
 with open(config_file, 'r') as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -109,9 +110,11 @@ try:
         annotation = checkpoint['annotation']
     print(f'Loaded checkpoint: {checkpoint_file}, {len(annotation)} images already annotated')
 except:
-    checkpoint = {'scene_no': scene_no, 'kp_nos':kp_nos, 'kp_names':kp_names}
-    df_col = ['img_name','img_kp']
-    annotation = pd.DataFrame(columns=df_col,dtype='float')
+    checkpoint = {'scene_no': scene_no, 'kp_nos': kp_nos, 'kp_names': kp_names}
+    df_col = ['img_name', 'img_kp']
+    annotation = pd.DataFrame(columns=df_col, dtype='object')
+    annotation['img_name'] = annotation['img_name'].astype(str)
+    annotation['img_kp'] = annotation['img_kp'].astype(object)
     checkpoint['annotation'] = annotation
     print(f'Created new checkpoint: {checkpoint_file}')
 
@@ -122,13 +125,13 @@ count = 0
 while img_idx < len(img_names):
     img_name = img_names[img_idx]
     # continue loop if img_name is in checkpoint
-    print(img_idx, img_name)
+    print(f'{img_idx}/{len(img_names)}', img_name)
     if img_name in checkpoint['annotation'].img_name.values.tolist() or img_name.replace('Y:','H:') in checkpoint['annotation'].img_name.values.tolist():
         print(f'{img_idx}::: img_name: {img_name} is in checkpoint')
         img_idx = img_idx+1
         count += 1
         continue
-    if img_idx%5 != 3:
+    if img_idx % 2 != 1: # use this to control how many images to annotate
         img_idx = img_idx+1
         continue
     anno_frame = []
@@ -152,15 +155,15 @@ while img_idx < len(img_names):
     cv2.setMouseCallback(window_name, mouse_callback)
     key = cv2.waitKey(0)
 
-    if key & 0xFF == ord('b'):
+    if key & 0xFF == ord('b'):  # press b to stop
         cv2.destroyAllWindows()
         break
-    elif key & 0xFF == ord('r'):
+    elif key & 0xFF == ord('r'):  # press r to go back
         img_idx = img_idx - 1
-    elif key & 0xFF == ord('p'):
+    elif key & 0xFF == ord('p'):  # press p to redo last point
         cali_index -=1
         left_clicks.pop()
-    elif key & 0xFF == ord('c'):
+    elif key & 0xFF == ord('c'):  # press c to skip
         img_idx = img_idx + 1
         left_clicks = list()
         cali_index = 0
@@ -176,7 +179,7 @@ while img_idx < len(img_names):
     if anno_frame.shape[0] != kp_nos:
         print(f'Try again: {img_name} has {anno_frame.shape[0]} keypoints, should be {kp_nos}')
         continue
-    annotation.loc[img_idx] = [img_name,anno_frame]
+    annotation.loc[img_idx] = [img_name, anno_frame]
     checkpoint['annotation'] = annotation
     img_idx = img_idx+1
 
