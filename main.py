@@ -1,10 +1,9 @@
 from LidarOutput import PhoneLidar
 from utils.tools import *
 
-config_file = 'config/Mair.yaml'
-# config_file = 'config/door.yaml'
-# config_file = 'config/MEPbox.yaml'
-
+config_file = 'config/1_init_test/Mair.yaml'
+config_file = 'config/1_init_test/door.yaml'
+config_file = 'config/1_init_test/MEPbox.yaml'
 lidar = PhoneLidar(config_file)
 
 for measurement_no in range(lidar.config['dist_gt'].__len__()):

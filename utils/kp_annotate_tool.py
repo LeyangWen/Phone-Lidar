@@ -87,9 +87,10 @@ def mouse_callback(event, x, y, flags, params):
 # kp_names = ['TopRightFront','BotRightFront','TopRightBack','BotRightBack','TopLeftFront','BotLeftFront','TopLeftBack','BotLeftBack']
 # ####################################### CHANGE HERE BEFORE RUN #######################################
 
-config_file = 'F:\coding_projects\Phone-Lidar/config/door.yaml'
-config_file = 'F:\coding_projects\Phone-Lidar/config/Mair.yaml'
-config_file = 'F:\coding_projects\Phone-Lidar/config/MEPbox.yaml'
+config_file = '/config/1_init_test/door.yaml'
+config_file = '/config/1_init_test/Mair.yaml'
+config_file = '/config/1_init_test/MEPbox.yaml'
+config_file = '/config/2_odometry_check/door.yaml'
 
 with open(config_file, 'r') as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -121,12 +122,13 @@ count = 0
 while img_idx < len(img_names):
     img_name = img_names[img_idx]
     # continue loop if img_name is in checkpoint
-    if img_name in checkpoint['annotation'].img_name.values.tolist():
+    print(img_idx, img_name)
+    if img_name in checkpoint['annotation'].img_name.values.tolist() or img_name.replace('Y:','H:') in checkpoint['annotation'].img_name.values.tolist():
         print(f'{img_idx}::: img_name: {img_name} is in checkpoint')
         img_idx = img_idx+1
         count += 1
         continue
-    if img_idx%5 != 0:
+    if img_idx%5 != 3:
         img_idx = img_idx+1
         continue
     anno_frame = []

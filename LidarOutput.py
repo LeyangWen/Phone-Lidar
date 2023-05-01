@@ -33,10 +33,10 @@ class PhoneLidar():
                 print(f'method_3_median:')
             elif i == 3:
                 measurements = np.nanmean(self.inFrame_measurements, axis=0)#, weights=self.measurement_weights)
-                print(f'method_4_weighted_mean:')
+                print(f'method_4_mean:')
             gt_measurements = self.config['dist_gt']
             difference = compare_gt(measurements.reshape((-1))*1000, gt_measurements)
-            print(f'measure,gt,diff,percentage%')
+            print(f'gt,measure,diff,percentage%')
             diffs = []
             percentages = []
             for measure, gt, diff in zip(measurements.reshape((-1)), gt_measurements, difference):
@@ -45,7 +45,7 @@ class PhoneLidar():
                 gt = np.round(gt, 2)
                 diff = np.round(diff, 2)
                 percentage = np.round(diff/gt*100, 2)
-                print(f'{measure},{gt},{diff},{percentage}%')
+                print(f'{gt},{measure},{diff},{percentage}%')
                 diffs.append(diff)
                 percentages.append(percentage)
             print(f'Average, ,{np.round(np.mean(diffs), 2)}, {np.round(np.mean(percentages), 2)}%')
@@ -133,7 +133,7 @@ class PhoneLidar():
             # method 1: rough intersection of 3D lines
             est_kp1 = intersect(P0, P1)
             # method 2: use Lidar depth and RANSAC
-            est_kp2 = pts_center_ransac(P1, weights=weights)
+            est_kp2 = pts_center_ransac(P1)#, weights=weights)
             self.est_kps1[kp] = est_kp1.reshape(3)
             self.est_kps2[kp] = est_kp2.reshape(3)
         self.intersect_measurements = measure_obj(self.est_kps1,self.config['dist_sequences'])
@@ -159,8 +159,8 @@ class PhoneLidar():
             if filter_range != 0:
                 block = block[block < filter_range]
                 kp_weight = np.exp(-block / filter_range)/np.exp(1)  # exp(-x/range)
-                # kp_weight = np.exp(-(block / filter_range**2))  # exp(-(x/range)^2)
-                # kp_weight = (block - filter_range)**2 /4  # 0.25(x-5)^2
+                # kp_weight = np.exp(-(block / filter_range)**2)  # exp(-(x/range)^2)
+                # kp_weight = (block - filter_range)**2 / 4  # 0.25(x-5)^2
                 weight[i] = np.nanmean(kp_weight)
             Lidar_depth[i] = np.nanmean(block)
         return Lidar_depth, weight
@@ -197,7 +197,104 @@ class PhoneLidar():
         # depth = np.linalg.norm(lineP_3d - cameraPosition, axis=1) # just for checking
         return lineP_3d
 
+class PhoneLidarCheckerboardValidate(PhoneLidar):
+    def __init__(self, config_file):
+        self.square_size = 0.025
+        self.width = 5
+        self.height = 7
+        # super().__init__(config_file)
+        self.config_file = config_file
+        self.filter_range = 4
+        self.__load_config()
+        self.__load_2Dkps()
+        self.__load_calib()
+        # self.__iter_frames()
+        # self.__iter_kps()
+        # self.print_measurements()
+        frame_no = 0
+        print(self.get_GT_camera_pose(self.get_checkerboard(frame_no)))
+        print()
+        print(self.get_ios_camera_pose(frame_no))
 
 
 
+
+    def __project_kps(self, frame_no):
+        # project kps to 3D
+        frame = self.annotation.iloc[frame_no]
+        cameraPosition = self.cameraPositions[frame_no]
+        localToWorld = self.localToWorlds[frame_no]
+        # camera_rot_3x3M = self.camera_rot_3x3M[frame_no]
+        # depth_cam_intrinsic_3x3M = self.depth_cam_intrinsic_3x3M[frame_no]
+        Lidar_depths = self.Lidar_depths[frame_no]
+        kp_no = self.kp_nos
+        rot_kp = frame.img_kp
+        dist_kp = rot_kp.astype(np.float32).reshape((kp_no, 1, 2))
+        undist_kp = cv2.undistortPoints(dist_kp, self.camera_matrix, self.dist_coeffs, P=self.camera_matrix).reshape((kp_no, 2))
+
+        localPoint = (np.linalg.pinv(self.camera_matrix) @
+                      np.hstack(
+                          (undist_kp, np.ones((kp_no, 1)))
+                      ).T
+                      ).T * (Lidar_depths.reshape((kp_no, 1)))
+        lineP_3d = (localToWorld.T @
+                    np.hstack(
+                        (
+                            localPoint, np.ones((kp_no, 1))
+                        )
+                    ).T
+                    ).T
+
+        lineP_3d = np.array([np.divide(lineP_3d[:, 0], lineP_3d[:, 3].T), np.divide(lineP_3d[:, 1], lineP_3d[:, 3].T),
+                             np.divide(lineP_3d[:, 2], lineP_3d[:, 3].T)]).T
+
+        # depth = np.linalg.norm(lineP_3d - cameraPosition, axis=1) # just for checking
+        return lineP_3d
+
+    def get_checkerboard(self, frame_no):
+        frame = self.annotation.iloc[frame_no]
+        img_name = frame.img_name
+        # img_name = r'Y:\phone_Lidar\data\2_odometry_check\2023-04-19_060107\data\110454.986576833_5.jpeg'
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+        img = cv2.imread(img_name)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        ret, corners = cv2.findChessboardCorners(gray, (self.width, self.height), None)
+        if ret:
+            corners = corners.reshape(-1, 2)
+            corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+            img = cv2.drawChessboardCorners(img, (self.width, self.height), corners2, ret)
+            # cv2.imshow('img', img)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+            return corners2
+        else:
+            return None
+
+    def get_GT_camera_pose(self, corners):
+        # solve pnp
+        carpet_3D = np.zeros((self.width * self.height, 3), np.float32)
+        carpet_3D[:, :2] = np.mgrid[0:self.width, 0:self.height].T.reshape(-1, 2)
+        carpet_3D *= self.square_size
+        carpet_2D = corners
+        success, rotation_vector, translation_vector = cv2.solvePnP(carpet_3D, carpet_2D, self.camera_matrix, self.dist_coeffs, flags=0)
+        rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
+        return success, rotation_matrix, translation_vector, rotation_vector
+
+    def get_ios_camera_pose(self, frame_no):
+        # read odometry json
+        frame = self.annotation.iloc[frame_no]
+        json_file = frame.img_name.replace(self.config['img_extension'], 'json')
+        with open(json_file) as f:
+            data = json.load(f)
+            cameraEulerAngles = data['cameraEulerAngles']  # ios-ARkit XYZ Roll-Pitch-Yaw
+            camera_rot_3x3M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
+            cameraTransform = np.array(data['cameraTransform'][0]).T
+            localToWorld = np.array(data['localToWorld']).reshape((4, 4))
+
+            # rgb img size: 4320, 5760 ; depth img size: 192, 256
+            depth_map = np.array(data['depthMap'])
+            depthCameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3, 3))
+            depth_cam_intrinsic_3x3M = np.linalg.pinv(depthCameraIntrinsicsInversed)
+            cameraPosition = cameraTransform[:-1, -1]
+        return cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M
 

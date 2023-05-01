@@ -1,0 +1,22 @@
+
+# w/o stabilizer
+target: 'door'
+date: 'Apr19'
+data_dir: 'Y:\phone_Lidar\data\odometry_check\Apr19\door_wo_stablizer\data'
+data_type: 'img'
+img_extension: 'jpeg'
+checkpoint_file: 'Y:\phone_Lidar\data\odometry_check\Apr19\door_wo_stablizer\door-2Dkps.pkl'
+cam_yml: 'Y:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml'
+
+kp_nos: 8
+kp_names: ['door_topright','door_topleft','door_bottomright','door_bottomleft',
+           'frame_topright','frame_topleft','frame_bottomright','frame_bottomleft']
+dist_gt: [1009,1009,2112,2112,
+          1116,1100,2186,2186]
+dist_sequences: [[0, 1], [3, 2], [1, 3], [2, 0],
+                 [4, 5], [7, 6], [5, 7], [6, 4]]
+
+
+
+
+
