@@ -6,7 +6,8 @@ data_dir: 'Y:\phone_Lidar\data\odometry_check\Apr19\door_wo_stablizer\data'
 data_type: 'img'
 img_extension: 'jpeg'
 checkpoint_file: 'Y:\phone_Lidar\data\odometry_check\Apr19\door_wo_stablizer\door-2Dkps.pkl'
-cam_yml: 'Y:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml'
+#cam_yml: 'Y:\phone_Lidar\data\prelim\Feb14\wen14_portrait.yml'
+cam_yml: 'Y:\phone_Lidar\data\prelim\Feb14\wen14_landscape.yml'
 
 kp_nos: 8
 kp_names: ['door_topright','door_topleft','door_bottomright','door_bottomleft',
