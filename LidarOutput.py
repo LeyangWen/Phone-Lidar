@@ -216,7 +216,7 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
     # def run(self):
     #     print('overriding run()')
 
-    def get_checkerboard(self, frame_no):
+    def get_checkerboard(self, frame_no, show_img=False):
         frame = self.annotation.iloc[frame_no]
         img_name = frame.img_name
         # img_name = r'Y:\phone_Lidar\data\2_odometry_check\2023-04-19_060107\data\110454.986576833_5.jpeg'
@@ -227,7 +227,6 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         if ret:
             corners = corners.reshape(-1, 2)
             corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-            show_img = False
             if show_img:
                 img = cv2.drawChessboardCorners(img, (self.width, self.height), corners2, ret)
                 # write numbers on corners
@@ -254,7 +253,7 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         carpet_3D = np.zeros((self.width * self.height, 3), np.float32)
         for w in range(self.width):
             for h in range(self.height):
-                carpet_3D[h * self.width + w, :] = np.array([self.width-w, h, 0])
+                carpet_3D[h * self.width + w, :] = np.array([self.width-w-1, h, 0])
         # print(carpet_3D)
         carpet_3D *= self.square_size
         success, rotation_vector, translation_vector = cv2.solvePnP(carpet_3D, carpet_2D, self.camera_matrix, self.dist_coeffs, flags=0)
@@ -262,6 +261,7 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         RT4x4 = np.eye(4)
         RT4x4[:3, :3] = rotation_matrix
         RT4x4[:3, 3] = translation_vector.reshape((3,))
+        # RT4x4[:3, 3] = -rotation_matrix.dot(translation_vector.reshape((3,)))
         return success, rotation_matrix, translation_vector, rotation_vector, RT4x4.T
 
     def iter_frames(self):
@@ -278,12 +278,13 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         figure_lidar_cam_pos = plt.figure('Lidar camera position')
         ax_lidar_cam = figure_lidar_cam_pos.add_subplot(111, projection='3d')
         # draw x y z axis that go through the origin
-        ax_cam.quiver(0, 0, 0, 1, 0, 0, color='r')
-        ax_cam.quiver(0, 0, 0, 0, 1, 0, color='g')
-        ax_cam.quiver(0, 0, 0, 0, 0, 1, color='b')
-        ax_lidar_cam.quiver(0, 0, 0, 1, 0, 0, color='r')
-        ax_lidar_cam.quiver(0, 0, 0, 0, 1, 0, color='g')
-        ax_lidar_cam.quiver(0, 0, 0, 0, 0, 1, color='b')
+        length = 0.5
+        ax_cam.quiver(0, 0, 0, length, 0, 0, color='r')
+        ax_cam.quiver(0, 0, 0, 0, length, 0, color='g')
+        ax_cam.quiver(0, 0, 0, 0, 0, length, color='b')
+        ax_lidar_cam.quiver(0, 0, 0, length, 0, 0, color='r')
+        ax_lidar_cam.quiver(0, 0, 0, 0, length, 0, color='g')
+        ax_lidar_cam.quiver(0, 0, 0, 0, 0, length, color='b')
         for frame_no, [frame_idx, frame] in enumerate(self.annotation.iterrows()):
             if frame_no == 25:
                 break
@@ -291,11 +292,17 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
             cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.load_lidar(
                 frame_no)
             corners = self.get_checkerboard(frame_no)
-            camera4x4M = np.eye(4)
-            camera4x4M[:3, :3] = camera_rot_3x3M
-            camera4x4M[:3, 3] = cameraPosition.reshape((3,))
-            figure_lidar_cam_pos, ax_lidar_cam = draw_camera(camera4x4M, self.camera_matrix, figure_ax=[figure_lidar_cam_pos,ax_lidar_cam],
+            # camera4x4M = np.eye(4)
+            # camera4x4M[:3, :3] = camera_rot_3x3M
+            # camera4x4M[:3, 3] = cameraPosition.reshape((3,))
+            translate = np.zeros((4,4))
+            translate[2,3] = 2
+            translate[1,3] = -0.5
+            localToWorld = localToWorld + translate.T
+            # todo: draw a 3D line to one of the door key points
+            figure_lidar_cam_pos, ax_lidar_cam = draw_camera(localToWorld.T, self.camera_matrix, figure_ax=[figure_lidar_cam_pos,ax_lidar_cam],
                                                     cameraName=frame_no)
+            # corners = False
             if corners is False:
                 print(f'frame {frame_no} has no checkerboard')
             else:

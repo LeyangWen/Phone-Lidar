@@ -205,14 +205,15 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
                 ).T
     # homogeneous to cartesian
     basePts_3D = basePts_3D[:, :3] / basePts_3D[:, 3:]
-    alpha = (cameraName%300)/600 +0.3
+    # add uppper limit of alpha to be 1
+    alpha = (cameraName % 30)/30*0.5 + 0.3
 
     if figure_ax is None:
         figure = plt.figure(cameraName)
         ax = figure.add_subplot(111, projection='3d')
     else:
         figure, ax = figure_ax
-    ztext_offset = 0.05
+    text_offset = [0.02,0.02,0.05]
 
     ax.plot3D([basePts_3D[0, 0], basePts_3D[1, 0]],
               [basePts_3D[0, 1], basePts_3D[1, 1]],
@@ -229,7 +230,7 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     ax.plot3D([basePts_3D[0, 0], basePts_3D[2, 0]],
               [basePts_3D[0, 1], basePts_3D[2, 1]],
               [basePts_3D[0, 2], basePts_3D[2, 2]], color=cameraColor,alpha = 0.3)
-    ax.text(cameraPosition[0], cameraPosition[1], cameraPosition[2] +ztext_offset, cameraName, color='b', fontsize=8)
+    ax.text(cameraPosition[0] + text_offset[0], cameraPosition[1] + text_offset[1], cameraPosition[2] + text_offset[2], cameraName, color='b', fontsize=8)
     ax.scatter(cameraPosition[0], cameraPosition[1], cameraPosition[2], color='b',alpha = alpha, s = 20)
 
     # ax.scatter(basePts_3D[1, 0], basePts_3D[1, 1], basePts_3D[1, 2],color='b',alpha = alpha, s = 20)
@@ -251,10 +252,10 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     ax.set_zlabel('z')
 
     # # same scale for all axis
-    # scale = 3
-    # ax.set_xlim3d(-scale, scale)
-    # ax.set_ylim3d(-scale, scale)
-    # ax.set_zlim3d(-scale, scale)
+    scale = 1.5
+    ax.set_xlim3d(-scale/2, scale/2)
+    ax.set_ylim3d(-scale/2, scale/2)
+    ax.set_zlim3d(-0, scale)
 
     # plt.show()
     return figure, ax
