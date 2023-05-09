@@ -170,7 +170,7 @@ def rotation_matrix(theta1, theta2, theta3, order='xyz'):
     return matrix
 
 
-def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.05, cameraColor='r', cameraName='cam', figure_ax = None):
+def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320), cameraSize=0.05, cameraColor='r', cameraName='cam', figure_ax = None, lineP_3d = None):
     """
     Draw camera in the scene
     :param cameraTransform4x4: camera transform matrix
@@ -246,6 +246,16 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
     ax.plot3D([cameraPosition[0], basePts_3D[3, 0]],
               [cameraPosition[1], basePts_3D[3, 1]],
               [cameraPosition[2], basePts_3D[3, 2]], color=cameraColor,alpha = 0.3)
+
+
+    if lineP_3d is not None:
+        projected_pt = lineP_3d[0]
+        # draw a line from camera origin to lineP_3D
+        ax.plot3D([cameraPosition[0], projected_pt[0]],
+                    [cameraPosition[1], projected_pt[1]],
+                    [cameraPosition[2], projected_pt[2]], color='g',alpha = 0.3)
+        # draw a dot on lineP_3D
+        ax.scatter(projected_pt[0], projected_pt[1], projected_pt[2], color='g',alpha = 0.3, s = 20)
 
     plt.xlabel('x')
     plt.ylabel('y')

@@ -168,7 +168,7 @@ class PhoneLidar():
             Lidar_depth[i] = np.nanmean(block)
         return Lidar_depth, weight
 
-    def project_kps(self, frame_no):
+    def project_kps(self, frame_no, plot_depth=False):
         # project kps to 3D
         frame = self.annotation.iloc[frame_no]
         # cameraPosition = self.cameraPositions[frame_no]
@@ -198,6 +198,31 @@ class PhoneLidar():
                              np.divide(lineP_3d[:, 2], lineP_3d[:, 3].T)]).T
 
         # depth = np.linalg.norm(lineP_3d - cameraPosition, axis=1) # just for checking
+        # plot depth map and 2D kps
+        if plot_depth:
+            # todo: add manual visual check for labeling sequence
+            a,b = np.random.randint(0, 1000, 2)
+            plt.figure(a)
+            depth_img_scale = 256 / 5760
+            plt.imshow(self.depthMaps[frame_no])
+            plt.scatter(undist_kp[:, 0] * depth_img_scale, undist_kp[:, 1] * depth_img_scale, c='r', s=5)
+            # put number on each  keypoint
+            # for i in range(self.kp_nos):
+            #     plt.text(frame.img_kp[i, 0], frame.img_kp[i, 1], str(i), fontsize=8, color='r')
+            plt.title(f'Depth map w. 2D kps: frame {frame_no}')
+            frame = self.annotation.iloc[frame_no]
+            img_name = frame.img_name
+
+            plt.figure(b)
+            # read figure using plt
+            img = plt.imread(img_name)
+            plt.imshow(img)
+            plt.scatter(frame.img_kp[:, 0], frame.img_kp[:, 1], c='r', s=5)
+            # put number on each  keypoint
+            # for i in range(self.kp_nos):
+            #     plt.text(frame.img_kp[i, 0], frame.img_kp[i, 1], str(i), fontsize=8, color='r')
+            plt.title(f'RGB image w. 2D kps: frame {frame_no}')
+            plt.show()
         return lineP_3d
 
 
@@ -291,7 +316,6 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
             print(f'frame {frame_no}/{len(self.annotation)}', end='\r')
             cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.load_lidar(
                 frame_no)
-            corners = self.get_checkerboard(frame_no)
             # camera4x4M = np.eye(4)
             # camera4x4M[:3, :3] = camera_rot_3x3M
             # camera4x4M[:3, 3] = cameraPosition.reshape((3,))
@@ -299,15 +323,28 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
             translate[2,3] = 2
             translate[1,3] = -0.5
             localToWorld = localToWorld + translate.T
-            # todo: draw a 3D line to one of the door key points
-            figure_lidar_cam_pos, ax_lidar_cam = draw_camera(localToWorld.T, self.camera_matrix, figure_ax=[figure_lidar_cam_pos,ax_lidar_cam],
-                                                    cameraName=frame_no)
-            # corners = False
+
+            # # ########################## Delete this
+            # self.cameraPositions.append(cameraPosition)
+            # self.depthMaps.append(depth_map)
+            # self.localToWorlds.append(localToWorld)
+            # Lidar_depth, weight = self.extract_kps_depth(frame_no, filter_range=self.filter_range)
+            # self.Lidar_depths.append(Lidar_depth)
+            # self.weights.append(weight)
+            # lineP_3d = self.project_kps(frame_no)
+            # self.lineP_3ds.append(lineP_3d)
+            # ############################
+            # figure_lidar_cam_pos, ax_lidar_cam = draw_camera(localToWorld.T, self.camera_matrix, figure_ax=[figure_lidar_cam_pos,ax_lidar_cam],
+            #                                         cameraName=frame_no, lineP_3d=lineP_3d)
+
+            corners = self.get_checkerboard(frame_no)
             if corners is False:
                 print(f'frame {frame_no} has no checkerboard')
             else:
                 localToWorld = self.get_gt_camera_pose(corners)[4]
-                figure_gt_cam_pos, ax_cam = draw_camera(localToWorld.T, self.camera_matrix, figure_ax=[figure_gt_cam_pos,ax_cam], cameraName=frame_no)
+                # figure_gt_cam_pos, ax_cam = draw_camera(localToWorld.T, self.camera_matrix,
+                #                                         figure_ax=[figure_gt_cam_pos, ax_cam], cameraName=frame_no,
+                #                                         lineP_3d=lineP_3d)
             self.cameraPositions.append(cameraPosition)
             self.depthMaps.append(depth_map)
             self.localToWorlds.append(localToWorld)
@@ -319,6 +356,10 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
             # method 3
             self.inFrame_measurements.append(measure_obj(lineP_3d, self.config['dist_sequences']))
             self.measurement_weights.append(measure_obj(lineP_3d, self.config['dist_sequences']))
+
+            figure_gt_cam_pos, ax_cam = draw_camera(localToWorld.T, self.camera_matrix,
+                                                    figure_ax=[figure_gt_cam_pos, ax_cam], cameraName=frame_no,
+                                                    lineP_3d=lineP_3d)
         self.inFrame_measurements = np.array(self.inFrame_measurements)
         self.lineP_3ds = np.array(self.lineP_3ds)
         self.weights = np.array(self.weights)
