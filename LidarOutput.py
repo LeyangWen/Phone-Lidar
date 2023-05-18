@@ -5,7 +5,7 @@ import cv2
 from utils.tools import *
 import yaml
 import json
-
+import c3d
 
 # class
 class PhoneLidar():
@@ -78,13 +78,14 @@ class PhoneLidar():
             camera_rot_3x3M = rotation_matrix(cameraEulerAngles[0], cameraEulerAngles[1], cameraEulerAngles[2])
             cameraTransform = np.array(data['cameraTransform'][0]).T
             localToWorld = np.array(data['localToWorld']).reshape((4, 4))
-
+            # timestamp
+            timestamp = data['timestamp']
             # rgb img size: 4320, 5760 ; depth img size: 192, 256
             depth_map = np.array(data['depthMap'])
             depthCameraIntrinsicsInversed = np.array(data['cameraIntrinsicsInversed']).reshape((3, 3))
             depth_cam_intrinsic_3x3M = np.linalg.pinv(depthCameraIntrinsicsInversed)
             cameraPosition = cameraTransform[:-1, -1]
-        return cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M
+        return cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M, timestamp
 
     def iter_frames(self):
         self.cameraPositions = []
@@ -97,7 +98,7 @@ class PhoneLidar():
         self.measurement_weights = []
         for frame_no, [frame_idx, frame] in enumerate(self.annotation.iterrows()):
             print(f'frame {frame_no}/{len(self.annotation)}', end='\r')
-            cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.load_lidar(
+            cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M, timestamp = self.load_lidar(
                 frame_no)
             self.cameraPositions.append(cameraPosition)
             self.depthMaps.append(depth_map)
@@ -273,13 +274,26 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         else:
             return ret
 
-    def get_gt_camera_pose(self, carpet_2D):
+    def get_vicon_pts(
+            c3d_file=r'Y:\phone_Lidar\data\odometry_check\Apr19\door_w_stablizer/capture 01_20230518_014758_filtered.c3d',
+            clip=5):
+        reader = c3d.Reader(open(c3d_file, 'rb'))
+        print('All labels:', reader.point_labels, '\ntaking:', reader.point_labels[:clip])
+        points = []
+        for i, this_points, this_analog in reader.read_frames():
+            print('frame {}: point {}, analog {}'.format(
+                i, this_points.shape, this_analog.shape), end='\r')
+            points.append(this_points[:, :clip])
+        points = np.array(points)
+        return points, reader.point_labels[:clip]
+
+    def get_gt_camera_pose_from_checkerboard(self, carpet_2D):
         # solve pnp
         carpet_3D = np.zeros((self.width * self.height, 3), np.float32)
         for w in range(self.width):
             for h in range(self.height):
                 carpet_3D[h * self.width + w, :] = np.array([self.width-w-1, h, 0])
-        # print(carpet_3D)
+        print(carpet_3D)
         carpet_3D *= self.square_size
         success, rotation_vector, translation_vector = cv2.solvePnP(carpet_3D, carpet_2D, self.camera_matrix, self.dist_coeffs, flags=0)
         rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
@@ -288,6 +302,9 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
         RT4x4[:3, 3] = translation_vector.reshape((3,))
         # RT4x4[:3, 3] = -rotation_matrix.dot(translation_vector.reshape((3,)))
         return success, rotation_matrix, translation_vector, rotation_vector, RT4x4.T
+
+    def get_gt_camera_pose_from_vicon(self, points):
+
 
     def iter_frames(self):
         self.cameraPositions = []
@@ -314,7 +331,7 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
             if frame_no == 25:
                 break
             print(f'frame {frame_no}/{len(self.annotation)}', end='\r')
-            cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M = self.load_lidar(
+            cameraPosition, depth_map, localToWorld, camera_rot_3x3M, depth_cam_intrinsic_3x3M, timestamp = self.load_lidar(
                 frame_no)
             # camera4x4M = np.eye(4)
             # camera4x4M[:3, :3] = camera_rot_3x3M
@@ -341,7 +358,7 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
             if corners is False:
                 print(f'frame {frame_no} has no checkerboard')
             else:
-                localToWorld = self.get_gt_camera_pose(corners)[4]
+                localToWorld = self.get_gt_camera_pose_from_checkerboard(corners)[4]
                 # figure_gt_cam_pos, ax_cam = draw_camera(localToWorld.T, self.camera_matrix,
                 #                                         figure_ax=[figure_gt_cam_pos, ax_cam], cameraName=frame_no,
                 #                                         lineP_3d=lineP_3d)

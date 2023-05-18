@@ -1,5 +1,6 @@
 from LidarOutput import *
 from utils.tools import *
+import c3d
 
 config_file = 'config/1_init_test/Mair.yaml'
 config_file = 'config/1_init_test/door.yaml'
