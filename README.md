@@ -1,11 +1,9 @@
-# Sample GitLab Project
+# Automatic Geometric Inspection using Phone-based Lidar
 
-This sample project shows how a project in GitLab looks for demonstration purposes. It contains issues, merge requests and Markdown files in many branches,
-named and filled with lorem ipsum.
+Input: 2D keypoint annotations on RGB image on both end of the target you are trying to measure
+RGB Camera calibration file
 
-You can look around to get an idea how to structure your project and, when done, you can safely delete this project.
-
-[Learn more about creating GitLab projects.](https://docs.gitlab.com/ee/gitlab-basics/create-project.html)
+Output: 3D keypoints & measured dimensions
 
 
 ## Install
