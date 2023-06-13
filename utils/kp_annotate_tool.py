@@ -92,6 +92,8 @@ config_file = f'{base_dir}/config/1_init_test/door.yaml'
 config_file = f'{base_dir}/config/1_init_test/Mair.yaml'
 config_file = f'{base_dir}/config/1_init_test/MEPbox.yaml'
 config_file = f'{base_dir}/config/2_odometry_check/door.yaml'
+config_file = f'{base_dir}/config/2_odometry_check/door_w_stabilizer.yaml'
+
 
 with open(config_file, 'r') as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
@@ -131,9 +133,9 @@ while img_idx < len(img_names):
         img_idx = img_idx+1
         count += 1
         continue
-    if img_idx % 2 != 1: # use this to control how many images to annotate
-        img_idx = img_idx+1
-        continue
+    # if img_idx % 2 != 1: # use this to control how many images to annotate
+    #     img_idx = img_idx+1
+    #     continue
     anno_frame = []
     img = cv2.imread(img_name)
     if isinstance(img,type(None)):

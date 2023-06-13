@@ -34,7 +34,7 @@ def intersect(P0,P1):
     return p
 
 
-def pts_center_ransac(points, num_iterations=3000, err_threshold=1, weights=None, simple=False):
+def pts_center_ransac(points, num_iterations=3000, err_threshold=0.01, weights=None, simple=False):
     # mediumn err_threshold=0.2
     # large err_threshold=0.5
     # small err_threshold=0.1
@@ -255,7 +255,7 @@ def draw_camera(cameraTransform4x4, cameraIntrinsic3x3, resolution = (5760,4320)
                     [cameraPosition[1], projected_pt[1]],
                     [cameraPosition[2], projected_pt[2]], color='g',alpha = 0.3)
         # draw a dot on lineP_3D
-        ax.scatter(projected_pt[0], projected_pt[1], projected_pt[2], color='g',alpha = 0.3, s = 20)
+        ax.scatter(projected_pt[0], projected_pt[1], projected_pt[2], color='b',alpha = 0.1, s = 20)
 
     plt.xlabel('x')
     plt.ylabel('y')
