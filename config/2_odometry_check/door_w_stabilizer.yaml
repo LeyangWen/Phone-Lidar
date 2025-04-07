@@ -12,10 +12,12 @@ cam_yml: 'Y:\phone_Lidar\data\prelim\Feb14\wen14_landscape.yml'
 kp_nos: 8
 kp_names: ['door_topright','door_topleft','door_bottomright','door_bottomleft',
            'frame_topright','frame_topleft','frame_bottomright','frame_bottomleft']
-dist_gt: [1009,1009,2112,2112,
-          1116,1100,2186,2186]
-dist_sequences: [[0, 1], [3, 2], [1, 3], [2, 0],
-                 [4, 5], [7, 6], [5, 7], [6, 4]]
+#dist_gt: [1009,1009,2112,2112,
+#          1116,1100,2186,2186]
+#dist_sequences: [[0, 1], [3, 2], [1, 3], [2, 0],
+#                 [4, 5], [7, 6], [5, 7], [6, 4]]
+dist_gt: [1009,1009,2112,2112]
+dist_sequences: [[0, 1], [3, 2], [1, 3], [2, 0]]
 c3d_file: 'C:\Users\Public\Documents\Vicon\data\TrackPoints\phone-based Lidar\phone\Test 1\capture 02.c3d'
 delay_frames: 62  # phone-based Lidar app start from first moving frame
 

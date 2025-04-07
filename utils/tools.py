@@ -34,7 +34,7 @@ def intersect(P0,P1):
     return p
 
 
-def pts_center_ransac(points, num_iterations=3000, err_threshold=0.01, weights=None, simple=False):
+def pts_center_ransac(points, num_iterations=3000, err_threshold=0.1, weights=None, simple=False):
     # mediumn err_threshold=0.2
     # large err_threshold=0.5
     # small err_threshold=0.1

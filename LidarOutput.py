@@ -376,7 +376,7 @@ class PhoneLidarCheckerboardValidate(PhoneLidar):
             localToWorld = localToWorld + translate.T
 
 
-            if False: # phone-based Lidar odometry
+            if True: # phone-based Lidar odometry
                 # # ########################## Delete this
                 self.cameraPositions.append(cameraPosition)
                 self.depthMaps.append(depth_map)
